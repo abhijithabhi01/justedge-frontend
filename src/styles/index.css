@@ -1,0 +1,7 @@
+/* Single entry point — keeps main.jsx's import unchanged while the actual
+   rules live split by concern. Order matters: base defines the tokens and
+   shared atoms (.btn, .pulse-dot, .role-chip) that both app.css and
+   landing.css build on. */
+@import './base.css';
+@import './app.css';
+@import './landing.css';

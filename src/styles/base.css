@@ -1,0 +1,43 @@
+/* ===== DESIGN TOKENS, RESET & SHARED ATOMS =====
+   Used by both the marketing landing page and the app shell
+   (user / admin / superadmin dashboards). Load this first. */
+
+:root{
+  --ink:#0e1520; --bg:#f0f2f8; --surface:#ffffff; --surface-2:#f6f7fb;
+  --text-main:#12161d; --text-muted:#636d7d; --text-faint:#9aa3b2;
+  --border:#e4e7ee; --border-soft:#edeff5;
+  --amber:#dd7c3f; --amber-soft:rgba(221,124,63,.12);
+  --teal:#2b9490; --teal-soft:rgba(43,148,144,.12);
+  --danger:#e2493f; --danger-soft:rgba(226,73,63,.11);
+  --good:#22a05e; --good-soft:rgba(34,160,94,.11);
+  --warn:#c98a1f; --warn-soft:rgba(201,138,31,.12);
+  --purple:#7c5cff; --purple-soft:rgba(124,92,255,.12);
+  --blue:#2f7bf6; --blue-soft:rgba(47,123,246,.12);
+  --radius:18px; --radius-sm:12px;
+  --shadow:0 1px 2px rgba(15,23,32,.04), 0 14px 32px -16px rgba(15,23,32,.12);
+  --shadow-lg:0 4px 10px rgba(15,23,32,.05), 0 24px 48px -20px rgba(15,23,32,.18);
+  --font-ui:'Manrope',-apple-system,sans-serif; --font-display:'Space Grotesk','Manrope',-apple-system,sans-serif; --font-mono:'JetBrains Mono',ui-monospace,monospace;
+  --sidebar-w:252px; --sidebar-text:#8b96ab;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:var(--font-ui); background:var(--bg); background-image:radial-gradient(circle at 12% 0%, rgba(124,92,255,.05), transparent 40%), radial-gradient(circle at 90% 8%, rgba(221,124,63,.06), transparent 38%); background-attachment:fixed; color:var(--text-main); font-size:14.5px; -webkit-font-smoothing:antialiased;}
+svg[style*="display:none"]{position:absolute;}
+.num{font-family:var(--font-mono);}
+button{font-family:inherit; cursor:pointer;}
+a{color:inherit; text-decoration:none;}
+
+/* ===== SHARED ATOMS (used by landing.css AND app.css) ===== */
+.pulse-dot{width:7px; height:7px; border-radius:50%; background:var(--good); position:relative; flex-shrink:0;}
+.pulse-dot::after{content:""; position:absolute; inset:-3px; border-radius:50%; background:var(--good); opacity:.25; animation:pulse 1.8s ease-in-out infinite;}
+@keyframes pulse{0%,100%{transform:scale(1); opacity:.25;} 50%{transform:scale(1.6); opacity:0;}}
+.role-chip{font-size:11px; font-weight:700; padding:4px 10px; border-radius:20px; display:inline-flex; align-items:center; gap:5px; text-transform:uppercase; letter-spacing:.04em; background:var(--amber-soft); color:var(--amber);}
+.role-chip svg{width:11px; height:11px;}
+.btn{background:var(--ink); color:#fff; border:none; padding:9px 15px; border-radius:9px; font-size:12.8px; font-weight:700; display:inline-flex; align-items:center; gap:7px;}
+.btn svg{width:13px; height:13px;}
+.btn-ghost{background:var(--surface); color:var(--text-main); border:1px solid var(--border);}
+.btn-ghost:hover{background:var(--surface-2);}
+.btn-amber{background:linear-gradient(155deg, var(--amber), #b34e1f);}
+.btn-danger{background:linear-gradient(155deg, var(--danger), #a8281f);}
+.btn-block{width:100%; justify-content:center;}
+.btn:disabled{opacity:.5; cursor:not-allowed;}
