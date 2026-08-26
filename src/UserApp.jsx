@@ -8,13 +8,13 @@ import UserSensorsView from './views/UserSensorsView.jsx';
 import UserAlertsView from './views/UserAlertsView.jsx';
 import UserAutomationsView from './views/UserAutomationsView.jsx';
 import { ensurePermissions } from './lib/helpers.js';
+import { PageLoader } from './components/Spinner.jsx';
 
-// Persistent sidebar/topbar shell — same pattern as AdminLayout, so the
-// sidebar doesn't remount every time the user switches tabs.
 function UserLayout({ user, mySensors }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { loading } = useData();
 
   const view = location.pathname.split('/')[2] || 'overview';
 
@@ -28,7 +28,7 @@ function UserLayout({ user, mySensors }) {
       <div className="main">
         <UserTopbar view={view} user={user} onMenuClick={() => setMobileNavOpen(true)} />
         <div className="content">
-          <Outlet context={{ goTo }} />
+          {loading ? <PageLoader label="Loading your sensors…" /> : <Outlet context={{ goTo }} />}
         </div>
       </div>
     </div>
@@ -41,10 +41,18 @@ function OverviewRoute({ user, mySensors, myAlerts }) {
 }
 
 export default function UserApp({ userId }) {
-  const { users, sensors, alerts, automations } = useData();
+  const { users, sensors, alerts, automations, loading } = useData();
 
   const user = users.find(u => u.id === userId) || null;
   if (user) ensurePermissions(user);
+
+  if (loading && !user) {
+    return (
+      <div className="app">
+        <div className="main"><div className="content"><PageLoader label="Loading your account…" /></div></div>
+      </div>
+    );
+  }
 
   if (!user) {
     return (

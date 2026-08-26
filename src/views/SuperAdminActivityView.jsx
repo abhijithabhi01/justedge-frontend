@@ -33,7 +33,7 @@ export default function SuperAdminActivityView() {
 
   function exportCsv() {
     downloadCSV(
-      'hearth-activity-log.csv',
+      'justedge-activity-log.csv',
       ['Time', 'Actor', 'Role', 'Action', 'Target', 'Category', 'Severity', 'IP'],
       filtered.map(l => [formatDateTime(l.timestamp), l.actorName, l.actorRole, l.action, l.target, CATEGORY_LABEL[l.category] || l.category, l.severity, l.ip])
     );

@@ -4,7 +4,7 @@ import { useToast } from '../context/ToastContext.jsx';
 import { boardById, formatMacInput, isValidMac } from '../lib/helpers.js';
 
 export default function SensorForm({ sensor, onDone, lockedUserId }) {
-  const { boardCatalog, subscriptionPlans, users, sensors, addSensor, updateSensor } = useData();
+  const { boardCatalog, awsBoards, subscriptionPlans, users, sensors, addSensor, updateSensor } = useData();
   const showToast = useToast();
   const editing = !!sensor;
 
@@ -16,10 +16,20 @@ export default function SensorForm({ sensor, onDone, lockedUserId }) {
   const [plan, setPlan] = useState(sensor?.subscriptionPlan || subscriptionPlans[0]?.id || '');
   const [expiry, setExpiry] = useState(sensor?.subscriptionExpiry || '');
   const [assignUserId, setAssignUserId] = useState(sensor?.assignedUserId || lockedUserId || '');
+  const [awsDeviceId, setAwsDeviceId] = useState(sensor?.awsDeviceId || '');
   const [error, setError] = useState('');
 
   const board = boardId ? boardById(boardCatalog, boardId) : null;
   const isLora = board?.conn === 'LoRaWAN';
+
+  // Boards already linked to another registered sensor shouldn't be
+  // offered again — the backend rejects a second link anyway.
+  const takenAwsIds = new Set(
+    sensors.filter(s => s.awsDeviceId && s.id !== sensor?.id).map(s => s.awsDeviceId)
+  );
+  const availableAwsBoards = awsBoards.filter(
+    b => !takenAwsIds.has(b.deviceId) || b.deviceId === awsDeviceId
+  );
 
   function submit() {
     setError('');
@@ -38,6 +48,7 @@ export default function SensorForm({ sensor, onDone, lockedUserId }) {
       simNo: isLora ? null : sim.trim(), mac,
       subscriptionPlan: plan, subscriptionExpiry: expiry,
       assignedUserId: assignUserId || null,
+      awsDeviceId: awsDeviceId || null,
     };
 
     if (editing) {
@@ -78,6 +89,16 @@ export default function SensorForm({ sensor, onDone, lockedUserId }) {
         </div>
         <div className="hint">Choose the hardware board this sensor uses. Supports Wi-Fi, LoRaWAN, NB-IoT and Modbus boards.</div>
       </div>
+      {awsBoards.length > 0 && (
+        <div className="field">
+          <label>Live AWS device (optional)</label>
+          <select className="input" value={awsDeviceId} onChange={e => setAwsDeviceId(e.target.value)}>
+            <option value="">Not linked — use simulated data</option>
+            {availableAwsBoards.map(b => <option key={b.deviceId} value={b.deviceId}>{b.label}</option>)}
+          </select>
+          <div className="hint">Link this sensor to a physical board already reporting into AWS to show its real live readings instead of simulated ones.</div>
+        </div>
+      )}
       <div className="field">
         <label>IMEI number <span className="req">*</span></label>
         <input className="input" maxLength={15} value={imei} onChange={e => setImei(e.target.value.replace(/\D/g, ''))} placeholder="15-digit device IMEI" />

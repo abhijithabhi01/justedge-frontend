@@ -7,7 +7,7 @@ import React, {
 
 import { apiRequest } from '../api/client.js';
 
-const AUTH_KEY = 'hearth-session-v2';
+const AUTH_KEY = 'justedge-session-v2';
 
 const AuthContext = createContext(null);
 

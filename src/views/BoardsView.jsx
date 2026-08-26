@@ -3,9 +3,11 @@ import { useData } from '../context/DataContext.jsx';
 import Drawer from '../components/Drawer.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { useConfirm } from '../context/ConfirmContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 
 export default function BoardsView() {
   const { boardCatalog, addBoard, updateBoard, removeBoard } = useData();
+  const { isSuperadmin } = useAuth();
   const showToast = useToast();
   const confirm = useConfirm();
   const [editing, setEditing] = useState(null);
@@ -64,7 +66,7 @@ export default function BoardsView() {
     <section className="view active">
       <div className="filter-row">
         <div className="section-header"><div><div className="card-title">Board catalog</div><div className="card-title-sub">Hardware types available to every Admin</div></div></div>
-        <button className="btn btn-amber" onClick={() => open()}><svg><use href="#i-plus" /></svg>Add board</button>
+        {isSuperadmin && <button className="btn btn-amber" onClick={() => open()}><svg><use href="#i-plus" /></svg>Add board</button>}
       </div>
 
       <div className="entity-grid">
@@ -72,7 +74,7 @@ export default function BoardsView() {
           <div className="entity-card" key={board.id}>
             <div className="entity-card-top"><div><div className="entity-card-name">{board.name}</div><div className="entity-card-sub">{board.id}</div></div><span className="board-chip">{board.conn || 'Custom'}</span></div>
             <div className="entity-card-body"><div className="entity-meta-row"><span className="k">Probes</span><span className="v">{(board.probes || []).join(', ') || '—'}</span></div><div className="entity-meta-row"><span className="k">Description</span><span className="v">{board.desc || '—'}</span></div></div>
-            <div className="entity-card-foot"><span className="pill pill-muted">Platform board</span><div className="entity-card-actions"><button className="icon-btn-sm" title="Edit" onClick={() => open(board)}><svg><use href="#i-edit" /></svg></button><button className="icon-btn-sm" title="Remove" onClick={() => remove(board)}><svg><use href="#i-trash" /></svg></button></div></div>
+            <div className="entity-card-foot"><span className="pill pill-muted">Platform board</span>{isSuperadmin && <div className="entity-card-actions"><button className="icon-btn-sm" title="Edit" onClick={() => open(board)}><svg><use href="#i-edit" /></svg></button><button className="icon-btn-sm" title="Remove" onClick={() => remove(board)}><svg><use href="#i-trash" /></svg></button></div>}</div>
           </div>
         ))}
       </div>

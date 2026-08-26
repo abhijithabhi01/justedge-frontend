@@ -8,9 +8,9 @@ const NAV = {
     { id: 'sensors', label: 'Sensors', icon: 'i-cpu' },
     { id: 'users', label: 'Users', icon: 'i-users' },
     { id: 'assign', label: 'Assign Sensors', icon: 'i-link' },
+    { id: 'boards', label: 'Board Catalog', icon: 'i-cpu' },
   ],
   superAdmin: [
-    { id: 'boards', label: 'Board Catalog', icon: 'i-cpu' },
     { id: 'admins', label: 'Admin Accounts', icon: 'i-user-plus' },
   ],
 };
@@ -19,6 +19,13 @@ export default function Sidebar({ view, onNavigate, mobileOpen, onClose }) {
   const { sensors } = useData();
   const { isSuperadmin } = useAuth();
   const online = sensors.filter(s => s.status === 'online').length;
+
+  // Superadmin can view Sensors + Users + Board Catalog, but does not
+  // reassign ownership (that stays an Admin operations task).
+  const manageItems = NAV.manage.filter((item) => {
+    if (item.id === 'assign' && isSuperadmin) return false;
+    return true;
+  });
 
   function navigate(id) {
     onNavigate(id);
@@ -48,10 +55,10 @@ export default function Sidebar({ view, onNavigate, mobileOpen, onClose }) {
         ))}
       </ul>
 
-      {!isSuperadmin && <>
+      <>
         <div className="sidebar-section-label">Manage</div>
         <ul className="nav-list">
-          {NAV.manage.map(item => (
+          {manageItems.map(item => (
             <li className="nav-item" key={item.id}>
               <a
                 className={`nav-link${view === item.id ? ' active' : ''}`}
@@ -62,7 +69,7 @@ export default function Sidebar({ view, onNavigate, mobileOpen, onClose }) {
             </li>
           ))}
         </ul>
-      </>}
+      </>
 
       {isSuperadmin && (
         <>

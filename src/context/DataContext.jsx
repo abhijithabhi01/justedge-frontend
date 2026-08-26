@@ -29,6 +29,7 @@ const EMPTY_STATE = {
   activityLogs: [],
   securityFlags: [],
   boardCatalog: [],
+  awsBoards: [],
   subscriptionPlans: [],
   subscriptions: [],
   accessControl: {
@@ -43,19 +44,27 @@ function normalizeSensor(device, live = null) {
   const telemetry =
     live?.sensors || [];
 
-
+  // Generic helper — works for any sensor key regardless of source (AWS or
+  // simulated). AWS boards surface temperature as 'temp_c', humidity as
+  // 'humidity_pct', pressure as 'pressure_hpa', and an optional battery
+  // percentage as 'battery_pct'. Simulated boards use the same keys so the
+  // frontend never needs to branch on source.
   const findValue = (key) =>
     telemetry.find(
       (x) => x.key === key
     )?.value;
 
+  const temp = findValue('temp_c');
+  const hum = findValue('humidity_pct');
+  const pressure = findValue('pressure_hpa');
+  const light = findValue('light_lux');
+  const co2 = findValue('co2_ppm');
+  const vibration = findValue('vibration_g');
 
-  const temp =
-    findValue('temp_c');
-
-  const hum =
-    findValue('humidity_pct');
-
+  // AWS boards may report a discrete battery sensor; fall back to the
+  // top-level battery field from the simulated path.
+  const battSensor = findValue('battery_pct');
+  const battery = battSensor ?? live?.battery ?? null;
 
   return {
     id: device.id,
@@ -77,16 +86,17 @@ function normalizeSensor(device, live = null) {
     assignedUserId:
       device.assignedUserId || null,
 
+    awsDeviceId:
+      device.awsDeviceId || null,
 
-    // Live values supplied by /live
-    temp:
-      temp ?? null,
-
-    hum:
-      hum ?? null,
-
-    battery:
-      live?.battery ?? null,
+    // ── Live telemetry values ────────────────────────────────────────────────────
+    temp,
+    hum,
+    pressure,
+    light,
+    co2,
+    vibration,
+    battery,
 
     status:
       live?.status || 'unknown',
@@ -94,25 +104,21 @@ function normalizeSensor(device, live = null) {
     lastPing:
       live?.lastPing || null,
 
-
-    // These fields do not currently exist
-    // in the backend DB/API.
+    // These fields do not currently exist in the backend DB/API.
     signal: null,
-
-    fw: null,
-
+    fw: live?.fw ?? null,
     mac: null,
 
-    base:
-      temp ?? null,
-
-    amp: null,
+    // base/amp drive the SensorDetail sparkline chart.
+    // For AWS sensors we fix amplitude to 0.5 since we don't yet have
+    // historical data to derive it from.
+    base: temp ?? null,
+    amp: live?.source === 'aws' ? 0.5 : null,
 
     source:
       live?.source || null,
 
-    telemetry:
-      telemetry,
+    telemetry,
 
     relays:
       live?.relays || [],
@@ -121,7 +127,6 @@ function normalizeSensor(device, live = null) {
       live?.serverTime || null,
   };
 }
-
 
 function normalizeUser(user) {
 
@@ -302,6 +307,7 @@ export function DataProvider({ children }) {
 
     const [
       boardRes,
+      awsBoardRes,
       userRes,
       deviceRes,
       liveRes,
@@ -313,6 +319,11 @@ export function DataProvider({ children }) {
 
       apiRequest(
         '/api/board-catalog'
+      ),
+
+      apiRequest(
+        '/api/iot/boards',
+        { token }
       ),
 
       apiRequest(
@@ -460,6 +471,9 @@ export function DataProvider({ children }) {
       boardCatalog:
         boardRes.boards || [],
 
+      awsBoards:
+        awsBoardRes.boards || [],
+
       subscriptionPlans:
         planRes.plans || [],
 
@@ -585,6 +599,61 @@ export function DataProvider({ children }) {
   }, [loadData]);
 
 
+  // Live telemetry (temp/battery/status/relays) changes every few seconds
+  // server-side, but loadData() above only runs once per login and after
+  // mutations. Poll the lightweight /live endpoints on their own timer and
+  // merge just the live fields onto existing sensors — this must NOT call
+  // loadData()/setLoading(), or every tick would re-fetch users/alerts/
+  // automations too and flicker any open drawer/form.
+  const refreshLive = useCallback(
+    async () => {
+
+      if (!token) return;
+
+      try {
+
+        const liveRes = await apiRequest(
+          session?.type === 'admin'
+            ? '/api/devices/live'
+            : '/api/devices/mine/live',
+          { token }
+        );
+
+        const liveMap =
+          new Map(
+            (liveRes.devices || [])
+              .map((d) => [String(d.id), d])
+          );
+
+        setState((prev) => ({
+          ...prev,
+          sensors: prev.sensors.map((s) => {
+            const live = liveMap.get(String(s.id));
+            return live ? normalizeSensor(s, live) : s;
+          }),
+        }));
+
+      } catch (err) {
+
+        console.error('[DataContext] live refresh failed', err);
+
+      }
+
+    },
+    [token, session?.type]
+  );
+
+  useEffect(() => {
+
+    if (!token) return;
+
+    const id = setInterval(refreshLive, 5000);
+
+    return () => clearInterval(id);
+
+  }, [token, refreshLive]);
+
+
   // ─────────────────────────────────────────────
   // Sensors
   // ─────────────────────────────────────────────
@@ -609,6 +678,8 @@ export function DataProvider({ children }) {
                   sensor.subscriptionPlan,
                 assignedUserId:
                   sensor.assignedUserId,
+                awsDeviceId:
+                  sensor.awsDeviceId,
               },
             }
           );
@@ -638,6 +709,8 @@ export function DataProvider({ children }) {
               simNo: patch.simNo,
               subscriptionPlan:
                 patch.subscriptionPlan,
+              awsDeviceId:
+                patch.awsDeviceId,
             },
           }
         );

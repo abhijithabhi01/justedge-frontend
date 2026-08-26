@@ -15,10 +15,17 @@ const TITLES = {
   oversight: ['Oversight', 'Risk signals and account health beyond the raw logs'],
 };
 
+// Superadmins manage Admin accounts and billing, not the sensor fleet
+// directly — the Dashboard KPIs already reflect that (see DashboardView),
+// this just keeps the header copy consistent with what's actually shown.
+const SUPERADMIN_TITLES = {
+  dashboard: ['Dashboard', 'Platform overview · admin accounts & licensing'],
+};
+
 export default function Topbar({ view, onMenuClick }) {
-  const { session, logout } = useAuth();
+  const { session, logout, isSuperadmin } = useAuth();
   const [profileOpen, setProfileOpen] = useState(false);
-  const [title, sub] = TITLES[view] || TITLES.dashboard;
+  const [title, sub] = (isSuperadmin && SUPERADMIN_TITLES[view]) || TITLES[view] || TITLES.dashboard;
 
   return (
     <>

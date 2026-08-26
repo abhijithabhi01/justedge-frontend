@@ -34,7 +34,7 @@ export default function SensorsView({ onNavigate }) {
       r.id, r.name, boardById(boardCatalog, r.boardId).name, r.imei, r.simNo || '',
       r.subscriptionPlan, r.subscriptionExpiry, ownerName(users, r), r.battery, r.signal, r.fw, r.status,
     ]);
-    downloadCSV('hearth-sensors.csv', headers, rows);
+    downloadCSV('justedge-sensors.csv', headers, rows);
     showToast('CSV downloaded');
   }
 
