@@ -1,15 +1,26 @@
 import React from 'react';
+import FleetChart from '../components/charts/FleetChart.jsx';
+import StatusChart from '../components/charts/StatusChart.jsx';
+import BatteryChart from '../components/charts/BatteryChart.jsx';
 
 export default function UserOverviewView({ user, mySensors, myAlerts, onNavigate }) {
   const online = mySensors.filter(s => s.status === 'online').length;
-  const avgTemp = mySensors.length ? (mySensors.reduce((a, r) => a + r.temp, 0) / mySensors.length).toFixed(1) : '0.0';
-  const lowBattery = mySensors.filter(r => r.battery < 20).length;
+  const temps = mySensors
+    .map(r => (r.temp != null && Number.isFinite(Number(r.temp)) ? Number(r.temp) : null))
+    .filter(t => t != null);
+  const avgTemp = temps.length
+    ? (temps.reduce((a, t) => a + t, 0) / temps.length).toFixed(1)
+    : '—';
+  // null battery must not count as "below 20%" (null < 20 is true in JS)
+  const lowBattery = mySensors.filter(
+    r => r.battery != null && Number.isFinite(Number(r.battery)) && Number(r.battery) < 20
+  ).length;
   const openAlerts = myAlerts.filter(a => !a.resolved).length;
 
   const kpis = [
     { label: 'My sensors', value: mySensors.length, icon: 'i-thermo', color: 'var(--purple)', soft: 'var(--purple-soft)' },
     { label: 'Online now', value: `${online}/${mySensors.length}`, icon: 'i-wifi', color: 'var(--good)', soft: 'var(--good-soft)' },
-    { label: 'Avg temperature', value: `${avgTemp}°C`, icon: 'i-chart', color: 'var(--blue)', soft: 'var(--blue-soft)' },
+    { label: 'Avg temperature', value: avgTemp === '—' ? '—' : `${avgTemp}°C`, icon: 'i-chart', color: 'var(--blue)', soft: 'var(--blue-soft)' },
     { label: 'Open alerts', value: openAlerts, icon: 'i-battery', color: openAlerts > 0 ? 'var(--danger)' : 'var(--good)', soft: openAlerts > 0 ? 'var(--danger-soft)' : 'var(--good-soft)' },
   ];
 
@@ -35,6 +46,29 @@ export default function UserOverviewView({ user, mySensors, myAlerts, onNavigate
         </div>
       )}
 
+      {/* Charts scoped to this user's sensors */}
+      {mySensors.length > 0 && (
+        <>
+          <FleetChart
+            sensors={mySensors}
+            title="Your temperature trend"
+            subtitle="Based on your assigned sensors"
+          />
+          <div className="grid grid-2 section-gap">
+            <StatusChart
+              sensors={mySensors}
+              title="Your sensors status"
+              subtitle="Online vs offline right now"
+            />
+            <BatteryChart
+              sensors={mySensors}
+              title="Your battery levels"
+              subtitle="Sensors that report battery %"
+            />
+          </div>
+        </>
+      )}
+
       <div className="section-header">
         <div><div className="card-title">Your sensors</div><div className="card-title-sub">Quick glance — open My Sensors for full detail</div></div>
       </div>
@@ -55,8 +89,14 @@ export default function UserOverviewView({ user, mySensors, myAlerts, onNavigate
                   : <span className="pill pill-bad">Offline</span>}
               </div>
               <div className="entity-card-body">
-                <div className="entity-meta-row"><span className="k">Temp</span><span className="v">{s.temp}°C</span></div>
-                <div className="entity-meta-row"><span className="k">Battery</span><span className="v">{s.battery}%</span></div>
+                <div className="entity-meta-row">
+                  <span className="k">Temp</span>
+                  <span className="v">{s.temp != null ? `${Number(s.temp).toFixed(2)}°C` : '—'}</span>
+                </div>
+                <div className="entity-meta-row">
+                  <span className="k">Battery</span>
+                  <span className="v">{s.battery != null ? `${Number(s.battery).toFixed(0)}%` : '—'}</span>
+                </div>
               </div>
             </div>
           ))}
