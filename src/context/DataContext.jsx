@@ -6,7 +6,49 @@ import React, {
   useCallback,
 } from 'react';
 
-import { apiRequest } from '../api/client.js';
+import {
+  getBoardCatalogAPI,
+  getIotBoardsAPI,
+  getUsersAPI,
+  getDevicesAPI,
+  getDevicesLiveAPI,
+  getMyDevicesAPI,
+  getMyDevicesLiveAPI,
+  createDeviceAPI,
+  updateDeviceAPI,
+  deleteDeviceAPI,
+  assignDeviceAPI,
+  createUserAPI,
+  updateUserAPI,
+  updateUserStatusAPI,
+  updateUserPermissionsAPI,
+  deleteUserAPI,
+  getAlertsAPI,
+  resolveAlertAPI,
+  snoozeAlertAPI,
+  deleteAlertAPI,
+  getAutomationsAPI,
+  createAutomationAPI,
+  toggleAutomationAPI,
+  deleteAutomationAPI,
+  getBillingPlansAPI,
+  getBillingSubscriptionsAPI,
+  getAdminsAPI,
+  createAdminAPI,
+  updateAdminAPI,
+  updateAdminStatusAPI,
+  updateAdminPermissionsAPI,
+  deleteAdminAPI,
+  getActivityLogsAPI,
+  getOversightFlagsAPI,
+  resolveOversightFlagAPI,
+  reopenOversightFlagAPI,
+  getAccessControlRolesAPI,
+  getMeAPI,
+  createBoardCatalogAPI,
+  updateBoardCatalogAPI,
+  deleteBoardCatalogAPI,
+} from '../api/allAPIs.js';
 
 import {
   defaultPermissionsForRole,
@@ -65,6 +107,10 @@ function normalizeSensor(device, live = null) {
   // top-level battery field from the simulated path.
   const battSensor = findValue('battery_pct');
   const battery = battSensor ?? live?.battery ?? null;
+  const latitude =
+    live?.latitude ?? findValue('latitude') ?? null;
+  const longitude =
+    live?.longitude ?? findValue('longitude') ?? null;
 
   return {
     id: device.id,
@@ -97,6 +143,8 @@ function normalizeSensor(device, live = null) {
     co2,
     vibration,
     battery,
+    latitude,
+    longitude,
 
     status:
       live?.status || 'unknown',
@@ -287,7 +335,7 @@ export function DataProvider({ children }) {
     setError(null);
 
     try {
-      const boardRes = await apiRequest('/api/board-catalog');
+      const boardRes = await getBoardCatalogAPI();
 
       setState({
         ...EMPTY_STATE,
@@ -317,49 +365,23 @@ export function DataProvider({ children }) {
       subscriptionRes,
     ] = await Promise.all([
 
-      apiRequest(
-        '/api/board-catalog'
-      ),
+      getBoardCatalogAPI(),
 
-      apiRequest(
-        '/api/iot/boards',
-        { token }
-      ),
+      getIotBoardsAPI(token),
 
-      apiRequest(
-        '/api/users',
-        { token }
-      ),
+      getUsersAPI(token),
 
-      apiRequest(
-        '/api/devices',
-        { token }
-      ),
+      getDevicesAPI(token),
 
-      apiRequest(
-        '/api/devices/live',
-        { token }
-      ),
+      getDevicesLiveAPI(token),
 
-      apiRequest(
-        '/api/alerts',
-        { token }
-      ),
+      getAlertsAPI(token),
 
-      apiRequest(
-        '/api/automations',
-        { token }
-      ),
+      getAutomationsAPI(token),
 
-      apiRequest(
-        '/api/billing/plans',
-        { token }
-      ),
+      getBillingPlansAPI(token),
 
-      apiRequest(
-        '/api/billing/subscriptions',
-        { token }
-      ),
+      getBillingSubscriptionsAPI(token),
     ]);
 
 
@@ -405,25 +427,13 @@ export function DataProvider({ children }) {
         accessRes,
       ] = await Promise.all([
 
-        apiRequest(
-          '/api/admins',
-          { token }
-        ),
+        getAdminsAPI(token),
 
-        apiRequest(
-          '/api/activity-logs',
-          { token }
-        ),
+        getActivityLogsAPI(token),
 
-        apiRequest(
-          '/api/oversight/flags',
-          { token }
-        ),
+        getOversightFlagsAPI(token),
 
-        apiRequest(
-          '/api/access-control/roles',
-          { token }
-        ),
+        getAccessControlRolesAPI(token),
       ]);
 
 
@@ -496,35 +506,17 @@ export function DataProvider({ children }) {
       planRes,
     ] = await Promise.all([
 
-      apiRequest(
-        '/api/auth/me',
-        { token }
-      ),
+      getMeAPI(token),
 
-      apiRequest(
-        '/api/devices/mine',
-        { token }
-      ),
+      getMyDevicesAPI(token),
 
-      apiRequest(
-        '/api/devices/mine/live',
-        { token }
-      ),
+      getMyDevicesLiveAPI(token),
 
-      apiRequest(
-        '/api/alerts',
-        { token }
-      ),
+      getAlertsAPI(token),
 
-      apiRequest(
-        '/api/automations',
-        { token }
-      ),
+      getAutomationsAPI(token),
 
-      apiRequest(
-        '/api/billing/plans',
-        { token }
-      ),
+      getBillingPlansAPI(token),
     ]);
 
 
@@ -612,12 +604,9 @@ export function DataProvider({ children }) {
 
       try {
 
-        const liveRes = await apiRequest(
-          session?.type === 'admin'
-            ? '/api/devices/live'
-            : '/api/devices/mine/live',
-          { token }
-        );
+        const liveRes = await (session?.type === 'admin'
+          ? getDevicesLiveAPI(token)
+          : getMyDevicesLiveAPI(token));
 
         const liveMap =
           new Map(
@@ -654,689 +643,279 @@ export function DataProvider({ children }) {
   }, [token, refreshLive]);
 
 
+
   // ─────────────────────────────────────────────
   // Sensors
   // ─────────────────────────────────────────────
 
-  const addSensor =
-    useCallback(
-      async (sensor) => {
+  const addSensor = useCallback(
+    async (sensor) => {
+      const data = await createDeviceAPI(sensor, token);
+      await loadData();
+      return data.device;
+    },
+    [token, loadData]
+  );
 
-        const data =
-          await apiRequest(
-            '/api/devices',
-            {
-              method: 'POST',
-              token,
+  const updateSensor = useCallback(
+    async (id, patch) => {
+      await updateDeviceAPI(id, patch, token);
+      await loadData();
+    },
+    [token, loadData]
+  );
 
-              body: {
-                name: sensor.name,
-                boardId: sensor.boardId,
-                imei: sensor.imei,
-                simNo: sensor.simNo,
-                subscriptionPlan:
-                  sensor.subscriptionPlan,
-                assignedUserId:
-                  sensor.assignedUserId,
-                awsDeviceId:
-                  sensor.awsDeviceId,
-              },
-            }
-          );
+  const removeSensor = useCallback(
+    async (id) => {
+      await deleteDeviceAPI(id, token);
+      await loadData();
+    },
+    [token, loadData]
+  );
 
-
-        await loadData();
-
-        return data.device;
-      },
-      [token]
-    );
-
-
-  const updateSensor =
-    useCallback(
-      async (id, patch) => {
-
-        await apiRequest(
-          `/api/devices/${id}`,
-          {
-            method: 'PATCH',
-            token,
-
-            body: {
-              name: patch.name,
-              imei: patch.imei,
-              simNo: patch.simNo,
-              subscriptionPlan:
-                patch.subscriptionPlan,
-              awsDeviceId:
-                patch.awsDeviceId,
-            },
-          }
-        );
-
-
-        await loadData();
-      },
-      [token]
-    );
-
-
-  const removeSensor =
-    useCallback(
-      async (id) => {
-
-        await apiRequest(
-          `/api/devices/${id}`,
-          {
-            method: 'DELETE',
-            token,
-          }
-        );
-
-
-        await loadData();
-      },
-      [token]
-    );
-
-
-  const reassignSensor =
-    useCallback(
-      async (sensorId, userId) => {
-
-        await apiRequest(
-          `/api/devices/${sensorId}/assign`,
-          {
-            method: 'PATCH',
-            token,
-
-            body: {
-              assignedUserId:
-                userId || null,
-            },
-          }
-        );
-
-
-        await loadData();
-      },
-      [token]
-    );
-
+  const reassignSensor = useCallback(
+    async (sensorId, userId) => {
+      await assignDeviceAPI(sensorId, { assignedUserId: userId }, token);
+      await loadData();
+    },
+    [token, loadData]
+  );
 
   // ─────────────────────────────────────────────
   // Users
   // ─────────────────────────────────────────────
 
-  const addUser =
-    useCallback(
-      async (user) => {
+  const addUser = useCallback(
+    async (user) => {
+      const data = await createUserAPI(user, token);
+      await loadData();
+      return { user: data.user, tempPassword: data.tempPassword };
+    },
+    [token, loadData]
+  );
 
-        const data =
-          await apiRequest(
-            '/api/users',
-            {
-              method: 'POST',
-              token,
-
-              body: {
-                name: user.name,
-                email: user.email,
-                phone: user.phone,
-              },
-            }
-          );
-
-
-        await loadData();
-
-        return { user: data.user, tempPassword: data.tempPassword };
-      },
-      [token]
-    );
-
-
-  const updateUser =
-    useCallback(
-      async (id, patch) => {
-
-        if (
-          patch.name !== undefined ||
-          patch.email !== undefined ||
-          patch.phone !== undefined
-        ) {
-
-          await apiRequest(
-            `/api/users/${id}`,
-            {
-              method: 'PATCH',
-              token,
-
-              body: {
-                name: patch.name,
-                email: patch.email,
-                phone: patch.phone,
-              },
-            }
-          );
-        }
-
-
-        if (
-          patch.status !== undefined
-        ) {
-
-          await apiRequest(
-            `/api/users/${id}/status`,
-            {
-              method: 'PATCH',
-              token,
-
-              body: {
-                status: patch.status,
-              },
-            }
-          );
-        }
-
-
-        await loadData();
-      },
-      [token]
-    );
-
-
-  const removeUser =
-    useCallback(
-      async (id) => {
-
-        await apiRequest(
-          `/api/users/${id}`,
+  const updateUser = useCallback(
+    async (id, patch) => {
+      if (
+        patch.name !== undefined ||
+        patch.email !== undefined ||
+        patch.phone !== undefined
+      ) {
+        await updateUserAPI(
+          id,
           {
-            method: 'DELETE',
-            token,
-          }
+            name: patch.name,
+            email: patch.email,
+            phone: patch.phone,
+          },
+          token
         );
+      }
 
+      if (patch.status !== undefined) {
+        await updateUserStatusAPI(id, { status: patch.status }, token);
+      }
 
-        await loadData();
-      },
-      [token]
-    );
+      await loadData();
+    },
+    [token, loadData]
+  );
 
+  const removeUser = useCallback(
+    async (id) => {
+      await deleteUserAPI(id, token);
+      await loadData();
+    },
+    [token, loadData]
+  );
 
-  const toggleUserStatus =
-    useCallback(
-      async (id) => {
+  const toggleUserStatus = useCallback(
+    async (id) => {
+      const user = state.users.find((u) => String(u.id) === String(id));
+      if (!user) return;
 
-        const user =
-          state.users.find(
-            (u) => String(u.id) === String(id)
-          );
+      const nextStatus = user.status === 'active' ? 'suspended' : 'active';
+      await updateUserStatusAPI(id, { status: nextStatus }, token);
+      await loadData();
+    },
+    [token, state.users, loadData]
+  );
 
+  const togglePermission = useCallback(
+    async (userId, key) => {
+      const user = state.users.find((u) => String(u.id) === String(userId));
+      if (!user) return;
 
-        if (!user) return;
-
-
-        const nextStatus =
-          user.status === 'active'
-            ? 'suspended'
-            : 'active';
-
-
-        await apiRequest(
-          `/api/users/${id}/status`,
-          {
-            method: 'PATCH',
-            token,
-
-            body: {
-              status: nextStatus,
-            },
-          }
-        );
-
-
-        await loadData();
-      },
-      [
-        token,
-        state.users,
-      ]
-    );
-
-
-  const togglePermission =
-    useCallback(
-      async (userId, key) => {
-
-        const user =
-          state.users.find(
-            (u) =>
-              String(u.id) ===
-              String(userId)
-          );
-
-
-        if (!user) return;
-
-
-        await apiRequest(
-          `/api/users/${userId}/permissions`,
-          {
-            method: 'PATCH',
-            token,
-
-            body: {
-              key,
-
-              value:
-                !user.permissions?.[key],
-            },
-          }
-        );
-
-
-        await loadData();
-      },
-      [
-        token,
-        state.users,
-      ]
-    );
-
+      const permissions = {
+        ...(user.permissions || {}),
+        [key]: !user.permissions?.[key],
+      };
+      await updateUserPermissionsAPI(userId, { permissions }, token);
+      await loadData();
+    },
+    [token, state.users, loadData]
+  );
 
   // ─────────────────────────────────────────────
   // Alerts
   // ─────────────────────────────────────────────
 
-  const resolveAlert =
-    useCallback(
-      async (id) => {
+  const resolveAlert = useCallback(
+    async (id) => {
+      await resolveAlertAPI(id, token);
+      await loadData();
+    },
+    [token, loadData]
+  );
 
-        await apiRequest(
-          `/api/alerts/${id}/resolve`,
-          {
-            method: 'PATCH',
-            token,
-          }
-        );
+  const dismissAlert = useCallback(
+    async (id) => {
+      await deleteAlertAPI(id, token);
+      await loadData();
+    },
+    [token, loadData]
+  );
 
-        await loadData();
-      },
-      [token]
-    );
-
-
-  const dismissAlert =
-    useCallback(
-      async (id) => {
-
-        await apiRequest(
-          `/api/alerts/${id}`,
-          {
-            method: 'DELETE',
-            token,
-          }
-        );
-
-        await loadData();
-      },
-      [token]
-    );
-
-
-  const snoozeAlert =
-    useCallback(
-      async (id) => {
-
-        await apiRequest(
-          `/api/alerts/${id}/snooze`,
-          {
-            method: 'PATCH',
-            token,
-
-            body: {
-              until:
-                new Date(
-                  Date.now() +
-                  60 * 60 * 1000
-                ).toISOString(),
-            },
-          }
-        );
-
-        await loadData();
-      },
-      [token]
-    );
-
+  const snoozeAlert = useCallback(
+    async (id) => {
+      await snoozeAlertAPI(id, { hours: 24 }, token);
+      await loadData();
+    },
+    [token, loadData]
+  );
 
   // ─────────────────────────────────────────────
   // Automations
   // ─────────────────────────────────────────────
 
-  const addAutomation =
-    useCallback(
-      async (automation) => {
+  const addAutomation = useCallback(
+    async (automation) => {
+      await createAutomationAPI(automation, token);
+      await loadData();
+    },
+    [token, loadData]
+  );
 
-        await apiRequest(
-          '/api/automations',
-          {
-            method: 'POST',
-            token,
+  const toggleAutomation = useCallback(
+    async (id) => {
+      await toggleAutomationAPI(id, token);
+      await loadData();
+    },
+    [token, loadData]
+  );
 
-            body: {
-              name: automation.name,
-              rule: automation.rule,
-              deviceId:
-                automation.deviceId || '',
-            },
-          }
-        );
-
-
-        await loadData();
-      },
-      [token]
-    );
-
-
-  const toggleAutomation =
-    useCallback(
-      async (id) => {
-
-        await apiRequest(
-          `/api/automations/${id}/toggle`,
-          {
-            method: 'PATCH',
-            token,
-          }
-        );
-
-
-        await loadData();
-      },
-      [token]
-    );
-
-
-  const removeAutomation =
-    useCallback(
-      async (id) => {
-
-        await apiRequest(
-          `/api/automations/${id}`,
-          {
-            method: 'DELETE',
-            token,
-          }
-        );
-
-
-        await loadData();
-      },
-      [token]
-    );
-
+  const removeAutomation = useCallback(
+    async (id) => {
+      await deleteAutomationAPI(id, token);
+      await loadData();
+    },
+    [token, loadData]
+  );
 
   // ─────────────────────────────────────────────
   // Admin accounts
   // ─────────────────────────────────────────────
 
-  const addAdmin =
-    useCallback(
-      async (admin) => {
+  const addAdmin = useCallback(
+    async (admin) => {
+      const data = await createAdminAPI(admin, token);
+      await loadData();
+      return { admin: data.admin, tempPassword: data.tempPassword };
+    },
+    [token, loadData]
+  );
 
-        const data =
-          await apiRequest(
-            '/api/admins',
-            {
-              method: 'POST',
-              token,
+  const updateAdmin = useCallback(
+    async (id, patch) => {
+      await updateAdminAPI(id, patch, token);
+      await loadData();
+    },
+    [token, loadData]
+  );
 
-              body: {
-                name: admin.name,
-                email: admin.email,
-                phone: admin.phone,
-                companyName: admin.companyName,
-                twoFactor:
-                  !!admin.twoFactor,
+  const removeAdmin = useCallback(
+    async (id) => {
+      await deleteAdminAPI(id, token);
+      await loadData();
+    },
+    [token, loadData]
+  );
 
-                // Omit when not explicitly set so the backend falls back to
-                // its own default (emailLocalPart + "123") rather than a
-                // fixed password shared by every admin.
-                ...(admin.tempPassword ? { tempPassword: admin.tempPassword } : {}),
-              },
-            }
-          );
+  const toggleAdminStatus = useCallback(
+    async (id) => {
+      const admin = state.adminAccounts.find(
+        (a) => String(a.id) === String(id)
+      );
+      if (!admin) return;
 
+      const status =
+        admin.status === 'suspended' ? 'active' : 'suspended';
+      await updateAdminStatusAPI(id, { status }, token);
+      await loadData();
+    },
+    [token, state.adminAccounts, loadData]
+  );
 
-        await loadData();
+  const toggleAdminPermission = useCallback(
+    async (adminId, key) => {
+      const admin = state.adminAccounts.find(
+        (a) => String(a.id) === String(adminId)
+      );
+      if (!admin) return;
 
-        return { admin: data.admin, tempPassword: data.tempPassword };
-      },
-      [token]
-    );
-
-
-  const updateAdmin =
-    useCallback(
-      async (id, patch) => {
-
-        await apiRequest(
-          `/api/admins/${id}`,
-          {
-            method: 'PATCH',
-            token,
-
-            body: {
-              name: patch.name,
-              email: patch.email,
-              phone: patch.phone,
-              companyName: patch.companyName,
-              status: patch.status,
-              twoFactor:
-                patch.twoFactor,
-            },
-          }
-        );
-
-
-        await loadData();
-      },
-      [token]
-    );
-
-
-  const removeAdmin =
-    useCallback(
-      async (id) => {
-
-        await apiRequest(
-          `/api/admins/${id}`,
-          {
-            method: 'DELETE',
-            token,
-          }
-        );
-
-
-        await loadData();
-      },
-      [token]
-    );
-
-
-  const toggleAdminStatus =
-    useCallback(
-      async (id) => {
-
-        const admin =
-          state.adminAccounts.find(
-            (a) =>
-              String(a.id) ===
-              String(id)
-          );
-
-
-        if (!admin) return;
-
-
-        const status =
-          admin.status === 'suspended'
-            ? 'active'
-            : 'suspended';
-
-
-        await apiRequest(
-          `/api/admins/${id}/status`,
-          {
-            method: 'PATCH',
-            token,
-
-            body: {
-              status,
-            },
-          }
-        );
-
-
-        await loadData();
-      },
-      [
-        token,
-        state.adminAccounts,
-      ]
-    );
-
-
-  const toggleAdminPermission =
-    useCallback(
-      async (adminId, key) => {
-
-        const admin =
-          state.adminAccounts.find(
-            (a) =>
-              String(a.id) ===
-              String(adminId)
-          );
-
-
-        if (!admin) return;
-
-
-        await apiRequest(
-          `/api/admins/${adminId}/permissions`,
-          {
-            method: 'PATCH',
-            token,
-
-            body: {
-              key,
-
-              value:
-                !admin.permissions?.[key],
-            },
-          }
-        );
-
-
-        await loadData();
-      },
-      [
-        token,
-        state.adminAccounts,
-      ]
-    );
-
+      const permissions = {
+        ...(admin.permissions || {}),
+        [key]: !admin.permissions?.[key],
+      };
+      await updateAdminPermissionsAPI(adminId, { permissions }, token);
+      await loadData();
+    },
+    [token, state.adminAccounts, loadData]
+  );
 
   // ─────────────────────────────────────────────
   // Oversight
   // ─────────────────────────────────────────────
 
-  const resolveSecurityFlag =
-    useCallback(
-      async (id) => {
+  const resolveSecurityFlag = useCallback(
+    async (id) => {
+      await resolveOversightFlagAPI(id, token);
+      await loadData();
+    },
+    [token, loadData]
+  );
 
-        await apiRequest(
-          `/api/oversight/flags/${id}/resolve`,
-          {
-            method: 'PATCH',
-            token,
-          }
-        );
+  const reopenSecurityFlag = useCallback(
+    async (id) => {
+      await reopenOversightFlagAPI(id, token);
+      await loadData();
+    },
+    [token, loadData]
+  );
 
+  const addBoard = useCallback(
+    async (board) => {
+      await createBoardCatalogAPI(board, token);
+      await loadData();
+    },
+    [token, loadData]
+  );
 
-        await loadData();
-      },
-      [token]
-    );
+  const updateBoard = useCallback(
+    async (id, board) => {
+      await updateBoardCatalogAPI(id, board, token);
+      await loadData();
+    },
+    [token, loadData]
+  );
 
-
-  const reopenSecurityFlag =
-    useCallback(
-      async (id) => {
-
-        await apiRequest(
-          `/api/oversight/flags/${id}/reopen`,
-          {
-            method: 'PATCH',
-            token,
-          }
-        );
-
-
-        await loadData();
-      },
-      [token]
-    );
-
-
-  const addBoard =
-    useCallback(
-      async (board) => {
-        await apiRequest('/api/board-catalog', {
-          method: 'POST',
-          token,
-          body: board,
-        });
-
-        await loadData();
-      },
-      [token, loadData]
-    );
-
-
-  const updateBoard =
-    useCallback(
-      async (id, board) => {
-        await apiRequest(`/api/board-catalog/${id}`, {
-          method: 'PATCH',
-          token,
-          body: board,
-        });
-
-        await loadData();
-      },
-      [token, loadData]
-    );
-
-
-  const removeBoard =
-    useCallback(
-      async (id) => {
-        await apiRequest(`/api/board-catalog/${id}`, {
-          method: 'DELETE',
-          token,
-        });
-
-        await loadData();
-      },
-      [token, loadData]
-    );
-
+  const removeBoard = useCallback(
+    async (id) => {
+      await deleteBoardCatalogAPI(id, token);
+      await loadData();
+    },
+    [token, loadData]
+  );
 
   const value = {
 

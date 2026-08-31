@@ -1,10 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { PERMISSION_DEFS, initials } from '../lib/helpers.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useConfirm } from '../context/ConfirmContext.jsx';
 
 export default function ProfilePanel({ user }) {
   const { logout } = useAuth();
+  const confirm = useConfirm();
+  const [permsOpen, setPermsOpen] = useState(false);
+
   if (!user) return null;
+
+  const grantedCount = PERMISSION_DEFS.filter(
+    (p) => !!user.permissions?.[p.key]
+  ).length;
 
   return (
     <>
@@ -12,42 +20,129 @@ export default function ProfilePanel({ user }) {
         <div className="entity-avatar">{initials(user.name)}</div>
         <div style={{ minWidth: 0 }}>
           <div className="profile-name">{user.name}</div>
-          <div className="profile-role">{user.role} · {user.id}</div>
+          <div className="profile-role">
+            {user.role} · {user.id}
+          </div>
         </div>
       </div>
 
       <div className="profile-contact">
-        <div className="profile-contact-row"><svg><use href="#i-mail" /></svg>{user.email}</div>
-        <div className="profile-contact-row"><svg><use href="#i-phone" /></svg>{user.phone || '—'}</div>
+        <div className="profile-contact-row">
+          <svg><use href="#i-mail" /></svg>
+          {user.email}
+        </div>
+        <div className="profile-contact-row">
+          <svg><use href="#i-phone" /></svg>
+          {user.phone || '—'}
+        </div>
         <div className="profile-contact-row">
           <svg><use href="#i-check" /></svg>
           {user.status === 'active' ? 'Active account' : 'Invitation pending'}
         </div>
       </div>
 
-      <div className="drawer-section">Your permissions</div>
-      {PERMISSION_DEFS.map(p => {
-        const granted = !!user.permissions?.[p.key];
-        return (
-          <div className="perm-summary-row" key={p.key}>
-            <div className={`perm-summary-icon ${granted ? 'granted' : 'revoked'}`}>
-              <svg><use href={`#${granted ? 'i-check' : 'i-shield'}`} /></svg>
+      <div
+        style={{
+          borderTop: '1px solid var(--border-soft, var(--border))',
+          marginTop: 12,
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setPermsOpen((v) => !v)}
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+            padding: '12px 0',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            color: 'inherit',
+            font: 'inherit',
+            textAlign: 'left',
+          }}
+        >
+          <span className="drawer-section" style={{ margin: 0 }}>
+            Your permissions
+            <span
+              style={{
+                marginLeft: 8,
+                fontWeight: 500,
+                opacity: 0.7,
+                fontSize: 12,
+              }}
+            >
+              ({grantedCount}/{PERMISSION_DEFS.length} granted)
+            </span>
+          </span>
+          <svg
+            style={{
+              width: 16,
+              height: 16,
+              flexShrink: 0,
+              transform: permsOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform 0.15s ease',
+              opacity: 0.7,
+            }}
+          >
+            <use href="#i-chev" />
+          </svg>
+        </button>
+
+        {permsOpen && (
+          <div style={{ paddingBottom: 4 }}>
+            {PERMISSION_DEFS.map((p) => {
+              const granted = !!user.permissions?.[p.key];
+              return (
+                <div className="perm-summary-row" key={p.key}>
+                  <div
+                    className={`perm-summary-icon ${granted ? 'granted' : 'revoked'}`}
+                  >
+                    <svg>
+                      <use href={`#${granted ? 'i-check' : 'i-shield'}`} />
+                    </svg>
+                  </div>
+                  <div className="perm-summary-text">
+                    <div className="perm-summary-label">{p.label}</div>
+                    <div className="perm-summary-desc">{p.desc}</div>
+                  </div>
+                  <span
+                    className={`perm-summary-tag ${granted ? 'granted' : 'revoked'}`}
+                  >
+                    {granted ? 'Granted' : 'Off'}
+                  </span>
+                </div>
+              );
+            })}
+            <div className="locked-banner" style={{ marginTop: 12 }}>
+              <svg style={{ width: 14, height: 14 }}>
+                <use href="#i-shield" />
+              </svg>
+              Only an admin can change your permissions.
             </div>
-            <div className="perm-summary-text">
-              <div className="perm-summary-label">{p.label}</div>
-              <div className="perm-summary-desc">{p.desc}</div>
-            </div>
-            <span className={`perm-summary-tag ${granted ? 'granted' : 'revoked'}`}>{granted ? 'Granted' : 'Off'}</span>
           </div>
-        );
-      })}
-      <div className="locked-banner" style={{ marginTop: 16 }}>
-        <svg style={{ width: 14, height: 14 }}><use href="#i-shield" /></svg>
-        Only an admin can change your permissions.
+        )}
       </div>
 
-      <button className="btn btn-danger btn-block" onClick={logout} style={{ marginTop: 20 }}>
-        <svg><use href="#i-logout" /></svg>Sign out
+      <button
+        className="btn btn-danger btn-block"
+        onClick={async () => {
+          const ok = await confirm({
+            title: 'Sign out?',
+            message: 'You will need to sign in again to access your dashboard and sensors.',
+            confirmLabel: 'Sign out',
+            cancelLabel: 'Stay signed in',
+            danger: true,
+          });
+          if (ok) logout();
+        }}
+        style={{ marginTop: 20 }}
+      >
+        <svg><use href="#i-logout" /></svg>
+        Sign out
       </button>
     </>
   );

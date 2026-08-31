@@ -6,6 +6,7 @@ import StatusChart from '../components/charts/StatusChart.jsx';
 import BatteryChart from '../components/charts/BatteryChart.jsx';
 import BoardChart from '../components/charts/BoardChart.jsx';
 import OwnerChart from '../components/charts/OwnerChart.jsx';
+import GpsMap from '../components/GpsMap.jsx';
 
 // ── Small inline helpers ────────────────────────────────────────────────────
 
@@ -40,8 +41,12 @@ function AwsSensorRow({ sensor }) {
   const hum      = sensor.hum      != null ? `${Number(sensor.hum).toFixed(1)} %`        : null;
   const pressure = sensor.pressure != null ? `${Number(sensor.pressure).toFixed(1)} hPa` : null;
   const battery  = sensor.battery  != null ? `${Number(sensor.battery).toFixed(0)} %`    : null;
+  const location =
+    sensor.latitude != null && sensor.longitude != null
+      ? `${Number(sensor.latitude).toFixed(5)}, ${Number(sensor.longitude).toFixed(5)}`
+      : null;
 
-  const hasAnyReading = temp || hum || pressure || battery;
+  const hasAnyReading = temp || hum || pressure || battery || location;
 
   return (
     <div
@@ -107,6 +112,15 @@ function AwsSensorRow({ sensor }) {
               🔋 <strong style={{ color: 'var(--text)' }}>{battery}</strong> Battery
             </div>
           )}
+          {location && (
+            <div style={{ fontSize: 12, color: 'var(--text-sub)', gridColumn: '1 / -1' }}>
+              📍{' '}
+              <strong style={{ color: 'var(--text)', fontFamily: 'ui-monospace, monospace' }}>
+                {location}
+              </strong>{' '}
+              Location
+            </div>
+          )}
         </div>
       ) : (
         <div style={{ fontSize: 12, color: 'var(--text-sub)', fontStyle: 'italic' }}>
@@ -151,6 +165,18 @@ export default function DashboardView() {
 
   // AWS-linked sensors visible to this admin session
   const awsSensors = sensors.filter(s => s.awsDeviceId);
+
+  // GPS boards with live coordinates (admin fleet map)
+  const gpsSensors = sensors.filter(
+    (s) =>
+      s.latitude != null &&
+      s.longitude != null &&
+      Number.isFinite(Number(s.latitude)) &&
+      Number.isFinite(Number(s.longitude))
+  );
+  // Prefer online GPS, else any with coords
+  const primaryGps =
+    gpsSensors.find((s) => s.status === 'online') || gpsSensors[0] || null;
 
   const adminKpis = [
     {
@@ -261,6 +287,20 @@ export default function DashboardView() {
           </div>
         ))}
       </div>
+
+      {/* ── Live GPS map (any admin with a board reporting coords) ───── */}
+      {primaryGps && (
+        <GpsMap
+          latitude={primaryGps.latitude}
+          longitude={primaryGps.longitude}
+          label={
+            gpsSensors.length > 1
+              ? `${primaryGps.name} (+${gpsSensors.length - 1} more GPS)`
+              : primaryGps.name || primaryGps.awsDeviceId || 'GPS board'
+          }
+          height={320}
+        />
+      )}
 
       {/* ── Live AWS sensor readings (admin only, non-superadmin) ──────── */}
       {!isSuperadmin && awsSensors.length > 0 && (

@@ -34,31 +34,20 @@ export default function Sidebar({ view, onNavigate, mobileOpen, onClose }) {
 
   return (
     <>
-    {mobileOpen && <div className="sidebar-overlay open" onClick={onClose}></div>}
-    <aside className={`sidebar${mobileOpen ? ' mobile-open' : ''}`}>
-      <div className="sidebar-brand">
-        <div><div className="brand-name">JustEdge</div><div className="brand-sub">Admin console</div></div>
-      </div>
-      <div className="sidebar-status"><div className="pulse-dot"></div>Fleet live · syncing</div>
+      {mobileOpen && <div className="sidebar-overlay open" onClick={onClose}></div>}
+      <aside className={`sidebar${mobileOpen ? ' mobile-open' : ''}`}>
+        <div className="sidebar-brand">
+          <div>
+            <div className="brand-name">JustEdge</div>
+            <div className="brand-sub">
+              {isSuperadmin ? 'Superadmin console' : 'Admin console'}
+            </div>
+          </div>      </div>
+        <div className="sidebar-status"><div className="pulse-dot"></div>Fleet live · syncing</div>
 
-      <div className="sidebar-section-label">Overview</div>
-      <ul className="nav-list">
-        {NAV.overview.map(item => (
-          <li className="nav-item" key={item.id}>
-            <a
-              className={`nav-link${view === item.id ? ' active' : ''}`}
-              onClick={() => navigate(item.id)}
-            >
-              <svg><use href={`#${item.icon}`} /></svg>{item.label}
-            </a>
-          </li>
-        ))}
-      </ul>
-
-      <>
-        <div className="sidebar-section-label">Manage</div>
+        <div className="sidebar-section-label">Overview</div>
         <ul className="nav-list">
-          {manageItems.map(item => (
+          {NAV.overview.map(item => (
             <li className="nav-item" key={item.id}>
               <a
                 className={`nav-link${view === item.id ? ' active' : ''}`}
@@ -69,13 +58,11 @@ export default function Sidebar({ view, onNavigate, mobileOpen, onClose }) {
             </li>
           ))}
         </ul>
-      </>
 
-      {isSuperadmin && (
         <>
-          <div className="sidebar-section-label">Super Admin</div>
+          <div className="sidebar-section-label">Manage</div>
           <ul className="nav-list">
-            {NAV.superAdmin.map(item => (
+            {manageItems.map(item => (
               <li className="nav-item" key={item.id}>
                 <a
                   className={`nav-link${view === item.id ? ' active' : ''}`}
@@ -87,15 +74,32 @@ export default function Sidebar({ view, onNavigate, mobileOpen, onClose }) {
             ))}
           </ul>
         </>
-      )}
 
-      <div className="sidebar-foot">
-        <div className="mini-card">
-          <div><div className="label">Boards online</div><div className="val">{online}/{sensors.length}</div></div>
-          <svg style={{ width: 18, height: 18, color: 'var(--good)' }}><use href="#i-wifi" /></svg>
+        {isSuperadmin && (
+          <>
+            <div className="sidebar-section-label">Super Admin</div>
+            <ul className="nav-list">
+              {NAV.superAdmin.map(item => (
+                <li className="nav-item" key={item.id}>
+                  <a
+                    className={`nav-link${view === item.id ? ' active' : ''}`}
+                    onClick={() => navigate(item.id)}
+                  >
+                    <svg><use href={`#${item.icon}`} /></svg>{item.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        <div className="sidebar-foot">
+          <div className="mini-card">
+            <div><div className="label">Boards online</div><div className="val">{online}/{sensors.length}</div></div>
+            <svg style={{ width: 18, height: 18, color: 'var(--good)' }}><use href="#i-wifi" /></svg>
+          </div>
         </div>
-      </div>
-    </aside>
+      </aside>
     </>
   );
 }

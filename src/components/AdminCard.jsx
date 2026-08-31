@@ -31,14 +31,18 @@ export default function AdminCard({ admin, selected, onSelect, onEdit }) {
     const ok = await confirm({
       title: suspending ? 'Suspend admin?' : 'Reactivate admin?',
       message: suspending
-        ? `${admin.name} will lose access immediately and won't be able to sign in until reactivated.`
-        : `${admin.name} will regain access and be able to sign in again.`,
+        ? `${admin.name} will lose access immediately and won't be able to sign in until reactivated. Users under this admin will also be suspended.`
+        : `${admin.name} will regain access and be able to sign in again. Users under this admin will be reactivated.`,
       confirmLabel: suspending ? 'Suspend' : 'Reactivate',
       danger: suspending,
     });
     if (!ok) return;
     toggleAdminStatus(admin.id);
-    showToast(`${admin.name} ${suspending ? 'suspended' : 'reactivated'}`);
+    showToast(
+      suspending
+        ? `${admin.name} suspended — users under this admin are suspended too`
+        : `${admin.name} reactivated — users under this admin are active again`
+    );
   }
 
   async function handleRemove(e) {
@@ -94,14 +98,40 @@ export default function AdminCard({ admin, selected, onSelect, onEdit }) {
       <div className="entity-card-foot">
         <span className={`pill role-pill ${ROLE_CLASS[admin.role] || 'viewer'}`}>{admin.role}</span>
         <div className="entity-card-actions">
-          <button className="icon-btn-sm" title="Edit" onClick={(e) => { e.stopPropagation(); onEdit(admin.id); }}><svg><use href="#i-edit" /></svg></button>
           <button
             className="icon-btn-sm"
-            title={isSelf ? "You can't change your own status" : (admin.status === 'suspended' ? 'Reactivate' : 'Suspend')}
+            title="Edit"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(admin.id);
+            }}
+          >
+            <svg><use href="#i-edit" /></svg>
+          </button>
+          <button
+            className="icon-btn-sm"
+            title={
+              isSelf
+                ? "You can't change your own status"
+                : admin.status === 'suspended'
+                  ? 'Reactivate admin (allow sign-in)'
+                  : 'Suspend admin (block sign-in)'
+            }
             disabled={isSelf}
             onClick={handleToggleStatus}
+            style={
+              admin.status === 'suspended'
+                ? { color: 'var(--good)' }
+                : { color: 'var(--warn)' }
+            }
           >
-            <svg><use href="#i-refresh" /></svg>
+            <svg>
+              <use
+                href={
+                  admin.status === 'suspended' ? '#i-check' : '#i-shield'
+                }
+              />
+            </svg>
           </button>
           <button
             className="icon-btn-sm"

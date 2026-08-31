@@ -31,7 +31,20 @@ export default function SensorCard({ sensor, onView, onEdit, canEdit = true, can
           : <span className="pill pill-bad">Offline</span>}
       </div>
       <div className="entity-card-body">
-        <div className="entity-meta-row"><span className="k">Battery</span><span className="v" style={{ color: battColor(sensor.battery) }}>{sensor.battery}%</span></div>
+        <div className="entity-meta-row">
+          <span className="k">Battery</span>
+          <span className="v" style={{ color: battColor(sensor.battery) }}>
+            {sensor.battery != null ? `${sensor.battery}%` : '—'}
+          </span>
+        </div>
+        {(sensor.latitude != null && sensor.longitude != null) && (
+          <div className="entity-meta-row">
+            <span className="k">Location</span>
+            <span className="v" style={{ fontFamily: 'monospace', fontSize: 12 }}>
+              {Number(sensor.latitude).toFixed(4)}, {Number(sensor.longitude).toFixed(4)}
+            </span>
+          </div>
+        )}
         <div className="entity-meta-row"><span className="k">Subscription</span><span className="v">{plan.name} · {expPill}</span></div>
         <div className="entity-meta-row"><span className="k">Assigned to</span><span className="v">{owner ? owner.name : 'Unassigned'}</span></div>
       </div>

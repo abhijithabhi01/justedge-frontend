@@ -2,6 +2,7 @@ import React from 'react';
 import FleetChart from '../components/charts/FleetChart.jsx';
 import StatusChart from '../components/charts/StatusChart.jsx';
 import BatteryChart from '../components/charts/BatteryChart.jsx';
+import GpsMap from '../components/GpsMap.jsx';
 
 export default function UserOverviewView({ user, mySensors, myAlerts, onNavigate }) {
   const online = mySensors.filter(s => s.status === 'online').length;
@@ -16,6 +17,17 @@ export default function UserOverviewView({ user, mySensors, myAlerts, onNavigate
     r => r.battery != null && Number.isFinite(Number(r.battery)) && Number(r.battery) < 20
   ).length;
   const openAlerts = myAlerts.filter(a => !a.resolved).length;
+  // Prefer a GPS board with live coords for the overview map
+  const gpsSensor =
+    mySensors.find(
+      (s) =>
+        s.latitude != null &&
+        s.longitude != null &&
+        Number.isFinite(Number(s.latitude)) &&
+        Number.isFinite(Number(s.longitude))
+    ) ||
+    mySensors.find((s) => s.boardId === 'gps-board') ||
+    null;
 
   const kpis = [
     { label: 'My sensors', value: mySensors.length, icon: 'i-thermo', color: 'var(--purple)', soft: 'var(--purple-soft)' },
@@ -44,6 +56,16 @@ export default function UserOverviewView({ user, mySensors, myAlerts, onNavigate
           <svg style={{ width: 14, height: 14 }}><use href="#i-battery" /></svg>
           {lowBattery} sensor{lowBattery !== 1 ? 's' : ''} below 20% battery — check My Sensors.
         </div>
+      )}
+
+      {/* Live GPS map when user has a tracker with coordinates */}
+      {gpsSensor && (
+        <GpsMap
+          latitude={gpsSensor.latitude}
+          longitude={gpsSensor.longitude}
+          label={gpsSensor.name || 'Your GPS board'}
+          height={300}
+        />
       )}
 
       {/* Charts scoped to this user's sensors */}

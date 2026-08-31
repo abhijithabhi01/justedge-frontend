@@ -4,6 +4,7 @@ import { useToast } from '../context/ToastContext.jsx';
 import { boardById, planById, userById, battColor } from '../lib/helpers.js';
 import { chartBaseOptions, genSeries } from '../lib/chartUtils.js';
 import { useChart } from '../lib/useChart.js';
+import GpsMap from './GpsMap.jsx';
 
 function signalLabel(s) {
   return s >= -60 ? 'Excellent' : s >= -70 ? 'Good' : s >= -80 ? 'Fair' : 'Poor';
@@ -208,6 +209,21 @@ export default function SensorDetail({ sensor, onEdit, onReassign, onClose, canE
           {sensor.status === 'online' ? 'Online' : sensor.status === 'offline' ? 'Offline' : 'Unknown'}
         </span>
       </div>
+
+      {/* Live GPS map — shown when the board reports coordinates */}
+      {(sensor.latitude != null ||
+        sensor.longitude != null ||
+        sensor.boardId === 'gps-board') && (
+        <div style={{ marginTop: 16, marginBottom: 12 }}>
+          <GpsMap
+            latitude={sensor.latitude}
+            longitude={sensor.longitude}
+            label={sensor.name || sensor.awsDeviceId || 'GPS board'}
+            height={240}
+            compact
+          />
+        </div>
+      )}
 
       {/* Trend chart */}
       <div
