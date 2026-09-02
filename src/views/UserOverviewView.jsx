@@ -12,21 +12,18 @@ export default function UserOverviewView({ user, mySensors, myAlerts, onNavigate
   const avgTemp = temps.length
     ? (temps.reduce((a, t) => a + t, 0) / temps.length).toFixed(1)
     : '—';
-  // null battery must not count as "below 20%" (null < 20 is true in JS)
   const lowBattery = mySensors.filter(
     r => r.battery != null && Number.isFinite(Number(r.battery)) && Number(r.battery) < 20
   ).length;
   const openAlerts = myAlerts.filter(a => !a.resolved).length;
-  // Prefer a GPS board with live coords for the overview map
+
   const gpsSensor =
-    mySensors.find(
-      (s) =>
-        s.latitude != null &&
-        s.longitude != null &&
-        Number.isFinite(Number(s.latitude)) &&
-        Number.isFinite(Number(s.longitude))
-    ) ||
-    mySensors.find((s) => s.boardId === 'gps-board') ||
+    mySensors.find((s) => {
+      const la = s.latitude ?? s.lat;
+      const ln = s.longitude ?? s.lng;
+      return la != null && ln != null && Number.isFinite(Number(la)) && Number.isFinite(Number(ln));
+    }) ||
+    mySensors.find((s) => String(s.id).includes('GPS') || s.boardType?.includes('GPS')) ||
     null;
 
   const kpis = [
@@ -58,17 +55,15 @@ export default function UserOverviewView({ user, mySensors, myAlerts, onNavigate
         </div>
       )}
 
-      {/* Live GPS map when user has a tracker with coordinates */}
       {gpsSensor && (
         <GpsMap
-          latitude={gpsSensor.latitude}
-          longitude={gpsSensor.longitude}
+          latitude={gpsSensor.latitude ?? gpsSensor.lat}
+          longitude={gpsSensor.longitude ?? gpsSensor.lng}
           label={gpsSensor.name || 'Your GPS board'}
           height={300}
         />
       )}
 
-      {/* Charts scoped to this user's sensors */}
       {mySensors.length > 0 && (
         <>
           <FleetChart

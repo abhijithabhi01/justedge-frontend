@@ -39,7 +39,6 @@ function AdminLayout() {
 
   return (
     <div className="app">
-      <DemoTutorial />
       <Sidebar view={view} onNavigate={goTo} mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
       <div className="main">
         <Topbar view={view} onMenuClick={() => setMobileNavOpen(true)} />

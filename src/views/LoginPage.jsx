@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useData } from '../context/DataContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { initials } from '../lib/helpers.js';
-import { useSearchParams } from 'react-router-dom';
 
 function SensorTicker() {
   const { sensors } = useData();
   const [i, setI] = useState(0);
   const [visible, setVisible] = useState(true);
-  const [searchParams] = useSearchParams();
+
   useEffect(() => {
     if (!sensors.length) return;
     const id = setInterval(() => {
@@ -52,9 +52,18 @@ const BRAND_POINTS = [
 
 export default function LoginPage({ onBack }) {
   const { login, loginDemo } = useAuth();
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+
+  // Direct links: /login?demo=admin  |  /login?demo=user
+  useEffect(() => {
+    const demo = String(searchParams.get('demo') || '').toLowerCase();
+    if (demo === 'admin' || demo === 'user') {
+      loginDemo(demo);
+    }
+  }, [searchParams, loginDemo]);
 
   async function submit(e) {
     e.preventDefault();

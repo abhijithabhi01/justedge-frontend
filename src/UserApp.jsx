@@ -133,7 +133,7 @@ export default function UserApp({ userId }) {
       </Route>
     </Routes>
             <DemoBanner />
-        <DemoTutorial />
+      
     </>
   );
 }

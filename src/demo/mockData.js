@@ -1,4 +1,4 @@
-/** Static demo data — never sent to production write APIs. */
+/** Static demo data — never sent to the API. */
 
 export const DEMO_ADMIN = {
   id: 'demo-admin-1',
@@ -42,12 +42,12 @@ export const DEMO_USER = {
   status: 'active',
   createdBy: 'demo-admin-1',
   permissions: {
-    monitorSensors: true,
-    addSensors: false,
-    editSensors: false,
-    removeSensors: false,
-    manageAutomations: false,
-    manageAlerts: false,
+    monitor: true,
+    addSensor: false,
+    editSensor: false,
+    removeSensor: false,
+    automations: true,
+    alerts: true,
     manageUsers: false,
     exportData: true,
   },
@@ -56,6 +56,7 @@ export const DEMO_USER = {
 export const DEMO_SENSORS = [
   {
     id: 'DEMO_GPS_001',
+    site: 'Fleet · NH 275 corridor',
     name: 'GPS Tracker ESP32_001',
     imei: 'DEMO-IMEI-001',
     status: 'online',
@@ -66,6 +67,8 @@ export const DEMO_SENSORS = [
     battery: 78,
     lat: 12.2958,
     lng: 76.6394,
+    latitude: 12.2958,
+    longitude: 76.6394,
     location: '12.2958, 76.6394',
     assignedUserId: 'demo-user-1',
     assignedUserName: 'Demo User',
@@ -76,6 +79,7 @@ export const DEMO_SENSORS = [
   },
   {
     id: 'DEMO_TEMP_001',
+    site: 'Warehouse A · Cold room',
     name: 'Warehouse Sensor A',
     imei: 'DEMO-IMEI-002',
     status: 'online',
@@ -96,6 +100,7 @@ export const DEMO_SENSORS = [
   },
   {
     id: 'DEMO_OFFLINE_001',
+    site: 'Warehouse B · Cold room',
     name: 'Cold Room B',
     imei: 'DEMO-IMEI-003',
     status: 'offline',
@@ -157,34 +162,6 @@ export const DEMO_ALERTS = [
     createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
   },
 ];
-export const DEMO_BOARD_CATALOG = [
-  {
-    id: 'demo-board-gps',
-    name: 'GPS Tracker Board',
-    conn: 'WiFi / LTE',
-    probes: 1,
-    desc: 'ESP32 GPS tracker with temperature probe',
-  },
-  {
-    id: 'demo-board-temp',
-    name: 'Temperature Board',
-    conn: 'WiFi',
-    probes: 2,
-    desc: 'Warehouse temperature and humidity board',
-  },
-  {
-    id: 'demo-board-lora',
-    name: 'LoRaWAN Sensor',
-    conn: 'LoRaWAN',
-    probes: 1,
-    desc: 'Long-range radio sensor (no SIM)',
-  },
-];
-
-export const DEMO_SUBSCRIPTION_PLANS = [
-  { id: 'Pro', name: 'Pro', desc: 'Full fleet features' },
-  { id: 'Basic', name: 'Basic', desc: 'Core monitoring' },
-];
 
 export const DEMO_AUTOMATIONS = [
   {
@@ -216,4 +193,59 @@ export const DEMO_AUTOMATIONS = [
     lastRun: 'About 45 min ago',
   },
 ];
-export const DEMO_ACTIVITY = [];
+
+export const DEMO_ACTIVITY = [
+  {
+    id: 'demo-log-1',
+    action: 'alert.created',
+    summary: 'High temperature alert on Warehouse Sensor A',
+    actor: 'System',
+    at: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
+    time: '12 min ago',
+  },
+  {
+    id: 'demo-log-2',
+    action: 'device.assigned',
+    summary: 'GPS Tracker ESP32_001 assigned to Demo User',
+    actor: 'Demo Admin',
+    at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    time: '2 hr ago',
+  },
+  {
+    id: 'demo-log-3',
+    action: 'device.offline',
+    summary: 'Cold Room B stopped reporting',
+    actor: 'System',
+    at: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(),
+    time: '1 day ago',
+  },
+];
+
+export const DEMO_BOARD_CATALOG = [
+  {
+    id: 'demo-board-gps',
+    name: 'GPS Tracker Board',
+    conn: 'WiFi / LTE',
+    probes: 1,
+    desc: 'ESP32 GPS tracker with temperature probe',
+  },
+  {
+    id: 'demo-board-temp',
+    name: 'Temperature Board',
+    conn: 'WiFi',
+    probes: 2,
+    desc: 'Warehouse temperature and humidity board',
+  },
+  {
+    id: 'demo-board-lora',
+    name: 'LoRaWAN Sensor',
+    conn: 'LoRaWAN',
+    probes: 1,
+    desc: 'Long-range radio sensor (no SIM)',
+  },
+];
+
+export const DEMO_SUBSCRIPTION_PLANS = [
+  { id: 'Pro', name: 'Pro', desc: 'Full fleet features' },
+  { id: 'Basic', name: 'Basic', desc: 'Core monitoring' },
+];

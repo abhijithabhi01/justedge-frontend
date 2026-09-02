@@ -58,15 +58,18 @@ import {
 import { useAuth } from './AuthContext.jsx';
 
 import { getDemoLiveAPI } from '../api/allAPIs.js'; // with your other API imports
-import {
-  DEMO_ADMIN,
-  DEMO_USER,
-  DEMO_SENSORS,
-  DEMO_ALERTS,
-  DEMO_AUTOMATIONS,
-  DEMO_ACTIVITY,
-  DEMO_BOARD_CATALOG,
-} from '../demo/mockData.js';
+import * as DemoMock from '../demo/mockData.js';
+const DEMO_ADMIN = DemoMock.DEMO_ADMIN;
+const DEMO_USER = DemoMock.DEMO_USER;
+const DEMO_SENSORS = DemoMock.DEMO_SENSORS || [];
+const DEMO_ALERTS = DemoMock.DEMO_ALERTS || [];
+const DEMO_AUTOMATIONS = DemoMock.DEMO_AUTOMATIONS || [];
+const DEMO_ACTIVITY = DemoMock.DEMO_ACTIVITY || [];
+const DEMO_BOARD_CATALOG = DemoMock.DEMO_BOARD_CATALOG || [];
+const DEMO_SUBSCRIPTION_PLANS = DemoMock.DEMO_SUBSCRIPTION_PLANS || [
+  { id: 'Pro', name: 'Pro', desc: 'Full fleet features' },
+  { id: 'Basic', name: 'Basic', desc: 'Core monitoring' },
+];
 const DataContext =
   createContext(null);
 
