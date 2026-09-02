@@ -179,3 +179,11 @@ export const getAccessControlRolesAPI = (token) =>
 
 export const exportDataAPI = (type, token, params) =>
   apiRequest(`/api/export/${type}`, { token, params });
+
+// ── Public demo (MongoDB demodata only — no AWS) ─────────────────────────────
+
+export const getDemoLiveAPI = () =>
+  apiRequest('/api/demo/live');
+
+export const demoLoginAPI = (role) =>
+  apiRequest('/api/demo/login', { method: 'POST', body: { role } });

@@ -57,7 +57,16 @@ import {
 
 import { useAuth } from './AuthContext.jsx';
 
-
+import { getDemoLiveAPI } from '../api/allAPIs.js'; // with your other API imports
+import {
+  DEMO_ADMIN,
+  DEMO_USER,
+  DEMO_SENSORS,
+  DEMO_ALERTS,
+  DEMO_AUTOMATIONS,
+  DEMO_ACTIVITY,
+  DEMO_BOARD_CATALOG,
+} from '../demo/mockData.js';
 const DataContext =
   createContext(null);
 
@@ -280,7 +289,27 @@ export function DataProvider({ children }) {
 
   const loadData = useCallback(
     async () => {
-
+      if (session?.isDemo) {
+        setLoading(true);
+        setError(null);
+        try {
+          setState({
+            ...EMPTY_STATE,
+            sensors: DEMO_SENSORS,
+            users: [DEMO_USER],
+            alerts: DEMO_ALERTS,
+            automations: DEMO_AUTOMATIONS,
+            adminAccounts: session.type === 'admin' ? [DEMO_ADMIN] : [],
+            activityLogs: DEMO_ACTIVITY,
+boardCatalog: (DEMO_BOARD_CATALOG || []).map((b) => ({ ...b })),
+subscriptionPlans: (DEMO_SUBSCRIPTION_PLANS || []).map((p) => ({ ...p })),
+            accessControl: { roles: ['Admin', 'User'], matrix: {} },
+          });
+        } finally {
+          setLoading(false);
+        }
+        return;
+      }
       if (!token) {
         await loadPublicData();
         return;
@@ -325,6 +354,7 @@ export function DataProvider({ children }) {
       session?.role,
       session?.adminId,
       session?.userId,
+      session?.isDemo,
     ]
   );
 
@@ -599,7 +629,40 @@ export function DataProvider({ children }) {
   // automations too and flicker any open drawer/form.
   const refreshLive = useCallback(
     async () => {
-
+      if (session?.isDemo) {
+        try {
+          const liveRes = await getDemoLiveAPI();
+          const list = liveRes.sensors || [];
+          if (!list.length) return;
+          setState((prev) => ({
+            ...prev,
+            sensors: prev.sensors.map((s) => {
+              const live =
+                list.find(
+                  (d) =>
+                    String(d.id) === String(s.id) ||
+                    String(d.deviceKey) === String(s.id)
+                ) || null;
+              if (!live) return s;
+              return {
+                ...s,
+                status: live.status || s.status,
+                temp: live.temp ?? s.temp,
+                humidity: live.humidity ?? s.humidity,
+                battery: live.battery ?? s.battery,
+                lat: live.lat ?? s.lat,
+                lng: live.lng ?? s.lng,
+                location: live.location || s.location,
+                lastSeen: live.updatedAt || new Date().toISOString(),
+                lastPing: live.updatedAt || 'Just now',
+              };
+            }),
+          }));
+        } catch (err) {
+          console.error('[DataContext] demo live refresh failed', err);
+        }
+        return;
+      }
       if (!token) return;
 
       try {
@@ -643,7 +706,11 @@ export function DataProvider({ children }) {
   }, [token, refreshLive]);
 
 
-
+  useEffect(() => {
+    if (!token && !session?.isDemo) return;
+    const id = setInterval(refreshLive, 5000);
+    return () => clearInterval(id);
+  }, [token, session?.isDemo, refreshLive]);
   // ─────────────────────────────────────────────
   // Sensors
   // ─────────────────────────────────────────────

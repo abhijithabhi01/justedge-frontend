@@ -9,6 +9,8 @@ import UserAlertsView from './views/UserAlertsView.jsx';
 import UserAutomationsView from './views/UserAutomationsView.jsx';
 import { ensurePermissions } from './lib/helpers.js';
 import { PageLoader } from './components/Spinner.jsx';
+import DemoTutorial from './components/DemoTutorial.jsx';
+import DemoBanner from './components/DemoBanner.jsx';
 
 function UserLayout({ user, mySensors }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -24,7 +26,15 @@ function UserLayout({ user, mySensors }) {
 
   return (
     <div className="app">
-      <UserSidebar view={view} onNavigate={goTo} user={user} mySensors={mySensors} mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+      <DemoTutorial />
+      <UserSidebar
+        view={view}
+        onNavigate={goTo}
+        user={user}
+        mySensors={mySensors}
+        mobileOpen={mobileNavOpen}
+        onClose={() => setMobileNavOpen(false)}
+      />
       <div className="main">
         <UserTopbar view={view} user={user} onMenuClick={() => setMobileNavOpen(true)} />
         <div className="content">
@@ -37,19 +47,30 @@ function UserLayout({ user, mySensors }) {
 
 function OverviewRoute({ user, mySensors, myAlerts }) {
   const { goTo } = useOutletContext();
-  return <UserOverviewView user={user} mySensors={mySensors} myAlerts={myAlerts} onNavigate={goTo} />;
+  return (
+    <UserOverviewView
+      user={user}
+      mySensors={mySensors}
+      myAlerts={myAlerts}
+      onNavigate={goTo}
+    />
+  );
 }
 
 export default function UserApp({ userId }) {
   const { users, sensors, alerts, automations, loading } = useData();
 
-  const user = users.find(u => u.id === userId) || null;
+  const user = users.find((u) => u.id === userId) || null;
   if (user) ensurePermissions(user);
 
   if (loading && !user) {
     return (
       <div className="app">
-        <div className="main"><div className="content"><PageLoader label="Loading your account…" /></div></div>
+        <div className="main">
+          <div className="content">
+            <PageLoader label="Loading your account…" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -57,25 +78,62 @@ export default function UserApp({ userId }) {
   if (!user) {
     return (
       <div className="app">
-        <div className="main"><div className="content"><div className="empty-state"><svg><use href="#i-users" /></svg><p>This account no longer exists. Please sign out and back in.</p></div></div></div>
+        <div className="main">
+          <div className="content">
+            <div className="empty-state">
+              <svg><use href="#i-users" /></svg>
+              <p>This account no longer exists. Please sign out and back in.</p>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
-  const mySensors = sensors.filter(s => s.assignedUserId === user.id);
-  const myAlerts = alerts.filter(a => String(a.ownerId || a.owner) === String(user.id));
-  const myAutomations = automations.filter(a => String(a.ownerId || a.owner) === String(user.id));
+  const mySensors = sensors.filter((s) => s.assignedUserId === user.id);
+  const myAlerts = alerts.filter(
+    (a) => String(a.ownerId || a.owner) === String(user.id)
+  );
+  const myAutomations = automations.filter(
+    (a) => String(a.ownerId || a.owner) === String(user.id)
+  );
 
   return (
+
+    <>
     <Routes>
       <Route element={<UserLayout user={user} mySensors={mySensors} />}>
         <Route index element={<Navigate to="overview" replace />} />
-        <Route path="overview" element={<OverviewRoute user={user} mySensors={mySensors} myAlerts={myAlerts} />} />
-        <Route path="sensors" element={<UserSensorsView user={user} mySensors={mySensors} />} />
-        <Route path="alerts" element={<UserAlertsView user={user} myAlerts={myAlerts} />} />
-        <Route path="automations" element={<UserAutomationsView user={user} myAutomations={myAutomations} />} />
+        <Route
+          path="overview"
+          element={
+            <OverviewRoute
+              user={user}
+              mySensors={mySensors}
+              myAlerts={myAlerts}
+            />
+          }
+        />
+        <Route
+          path="sensors"
+          element={<UserSensorsView user={user} mySensors={mySensors} />}
+        />
+        <Route
+          path="alerts"
+          element={<UserAlertsView user={user} myAlerts={myAlerts} />}
+        />
+        <Route
+          path="automations"
+          element={
+            <UserAutomationsView user={user} myAutomations={myAutomations} />
+          }
+        />
         <Route path="*" element={<Navigate to="overview" replace />} />
+
       </Route>
     </Routes>
+            <DemoBanner />
+        <DemoTutorial />
+    </>
   );
 }

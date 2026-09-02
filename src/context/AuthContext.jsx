@@ -9,7 +9,6 @@ import { getMeAPI, loginAPI, logoutAPI } from '../api/allAPIs.js';
 import { setAuthToken } from '../api/client.js';
 
 const AUTH_KEY = 'justedge-session-v2';
-
 const AuthContext = createContext(null);
 
 function loadSession() {
@@ -28,7 +27,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (session) {
       localStorage.setItem(AUTH_KEY, JSON.stringify(session));
-      setAuthToken(session.token);
+      setAuthToken(session.isDemo ? null : session.token);
     } else {
       localStorage.removeItem(AUTH_KEY);
       setAuthToken(null);
@@ -37,24 +36,21 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     if (!session?.token) return undefined;
+    if (session.isDemo) return undefined;
 
     let cancelled = false;
 
     getMeAPI(session.token)
       .then((data) => {
         if (cancelled) return;
-
         const account = data.admin || data.user;
         const type = data.admin ? 'admin' : 'user';
-
         if (!account) {
           setSession(null);
           return;
         }
-
         setSession((current) => {
           if (!current || current.token !== session.token) return current;
-
           return {
             ...current,
             type,
@@ -85,7 +81,6 @@ export function AuthProvider({ children }) {
     });
 
     let nextSession;
-
     if (data.admin) {
       nextSession = {
         type: 'admin',
@@ -115,11 +110,58 @@ export function AuthProvider({ children }) {
 
   function logout() {
     const token = session?.token;
-    if (token) {
+    if (token && !session?.isDemo) {
       logoutAPI(token).catch(() => {});
     }
     setAuthToken(null);
     setSession(null);
+  }
+
+  function loginDemo(type) {
+    if (type === 'admin') {
+      const next = {
+        type: 'admin',
+        isDemo: true,
+        token: 'demo-admin',
+        adminId: 'demo-admin-1',
+        name: 'Demo Admin',
+        role: 'Admin',
+        account: {
+          id: 'demo-admin-1',
+          name: 'Demo Admin',
+          email: 'demo.admin@justedge.io',
+          role: 'Admin',
+          status: 'active',
+          companyName: 'Just Embedded Demo',
+        },
+      };
+      setAuthToken(null);
+      setSession(next);
+      return next;
+    }
+
+    const next = {
+      type: 'user',
+      isDemo: true,
+      token: 'demo-user',
+      userId: 'demo-user-1',
+      name: 'Demo User',
+      role: 'User',
+      account: {
+        id: 'demo-user-1',
+        name: 'Demo User',
+        email: 'demo.user@justedge.io',
+        role: 'User',
+        status: 'active',
+        permissions: {
+          monitorSensors: true,
+          exportData: true,
+        },
+      },
+    };
+    setAuthToken(null);
+    setSession(next);
+    return next;
   }
 
   const isSuperadmin =
@@ -127,12 +169,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{
-        session,
-        login,
-        logout,
-        isSuperadmin,
-      }}
+      value={{ session, login, loginDemo, logout, isSuperadmin }}
     >
       {children}
     </AuthContext.Provider>
@@ -141,8 +178,6 @@ export function AuthProvider({ children }) {
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
 }

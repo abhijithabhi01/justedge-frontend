@@ -24,6 +24,7 @@ export default function UserSidebar({ view, onNavigate, user, mySensors, mobileO
     {mobileOpen && <div className="sidebar-overlay open" onClick={onClose}></div>}
     <aside className={`sidebar${mobileOpen ? ' mobile-open' : ''}`}>
       <div className="sidebar-brand">
+        <div className="brand-mark"><svg><use href="#i-thermo" /></svg></div>
         <div><div className="brand-name">JustEdge</div><div className="brand-sub">User dashboard</div></div>
       </div>
       <button className="sidebar-status sidebar-profile-trigger" onClick={() => setProfileOpen(true)} title="View your profile & permissions">
@@ -47,6 +48,16 @@ export default function UserSidebar({ view, onNavigate, user, mySensors, mobileO
       </ul>
 
       <div className="sidebar-foot">
+        <a
+          href="https://justembedded.in/contact/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="nav-link"
+          style={{ marginBottom: 10, fontSize: 12, opacity: 0.85 }}
+        >
+          <svg style={{ width: 14, height: 14 }}><use href="#i-shield" /></svg>
+          Support / contact
+        </a>
         <div className="mini-card">
           <div><div className="label">Your sensors online</div><div className="val">{online}/{mySensors.length}</div></div>
           <svg style={{ width: 18, height: 18, color: 'var(--good)' }}><use href="#i-wifi" /></svg>

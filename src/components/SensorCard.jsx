@@ -1,7 +1,7 @@
 import React from 'react';
 import { useData } from '../context/DataContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
-import { boardById, planById, userById, battColor, daysUntil } from '../lib/helpers.js';
+import { boardById, planById, userById, battColor, daysUntil, timeAgo } from '../lib/helpers.js';
 
 export default function SensorCard({ sensor, onView, onEdit, canEdit = true, canRemove = true }) {
   const { boardCatalog, subscriptionPlans, users, removeSensor } = useData();
@@ -17,7 +17,7 @@ export default function SensorCard({ sensor, onView, onEdit, canEdit = true, can
       : <span className="mono-faint">{sensor.subscriptionExpiry}</span>;
 
   return (
-    <div className="entity-card" onClick={() => onView(sensor.id)}>
+    <div className={`entity-card${sensor.status !== 'online' ? ' is-offline' : ''}`} onClick={() => onView(sensor.id)}>
       <div className="entity-card-top">
         <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
           <div className="entity-avatar sensor"><svg style={{ width: 18, height: 18 }}><use href="#i-cpu" /></svg></div>
@@ -37,16 +37,34 @@ export default function SensorCard({ sensor, onView, onEdit, canEdit = true, can
             {sensor.battery != null ? `${sensor.battery}%` : '—'}
           </span>
         </div>
-        {(sensor.latitude != null && sensor.longitude != null) && (
+        {((sensor.latitude != null && sensor.longitude != null) || (sensor.lat != null && sensor.lng != null)) && (
           <div className="entity-meta-row">
             <span className="k">Location</span>
             <span className="v" style={{ fontFamily: 'monospace', fontSize: 12 }}>
-              {Number(sensor.latitude).toFixed(4)}, {Number(sensor.longitude).toFixed(4)}
+              {Number(sensor.latitude ?? sensor.lat).toFixed(4)}, {Number(sensor.longitude ?? sensor.lng).toFixed(4)}
             </span>
           </div>
         )}
         <div className="entity-meta-row"><span className="k">Subscription</span><span className="v">{plan.name} · {expPill}</span></div>
         <div className="entity-meta-row"><span className="k">Assigned to</span><span className="v">{owner ? owner.name : 'Unassigned'}</span></div>
+        {(sensor.site || sensor.tag) && (
+          <div className="entity-meta-row">
+            <span className="k">Site</span>
+            <span className="v">{sensor.site || sensor.tag}</span>
+          </div>
+        )}
+        <div className="entity-meta-row">
+          <span className="k">Last seen</span>
+          <span className="v" style={{ color: sensor.status === 'online' ? 'var(--text)' : 'var(--danger, #b91c1c)' }}>
+            {sensor.status === 'online'
+              ? (sensor.lastSeen || sensor.lastPing
+                  ? timeAgo(sensor.lastSeen || sensor.lastPing)
+                  : 'Just now')
+              : (sensor.lastSeen
+                  ? timeAgo(sensor.lastSeen)
+                  : 'No report')}
+          </span>
+        </div>
       </div>
       <div className="entity-card-foot">
         <span className="board-chip"><svg><use href="#i-cpu" /></svg>{board.conn}</span>

@@ -7,7 +7,7 @@ import { useToast } from '../context/ToastContext.jsx';
 import { downloadCSV } from '../lib/csv.js';
 
 export default function UserSensorsView({ user, mySensors }) {
-  const [drawer, setDrawer] = useState(null); // { mode: 'add'|'edit'|'view', sensorId }
+  const [drawer, setDrawer] = useState(null);
   const showToast = useToast();
   const perms = user?.permissions || {};
   const activeSensor = drawer && drawer.sensorId ? mySensors.find(s => s.id === drawer.sensorId) : null;
@@ -20,10 +20,22 @@ export default function UserSensorsView({ user, mySensors }) {
     : activeSensor?.id;
 
   function exportCSV() {
-    const headers = ['Sensor ID', 'Name', 'Battery (%)', 'Signal (dBm)', 'Firmware', 'Status'];
-    const rows = mySensors.map(r => [r.id, r.name, r.battery, r.signal, r.fw, r.status]);
+    const headers = [
+      'Sensor ID', 'Name', 'Site', 'Status', 'Last seen', 'Battery (%)', 'Temp', 'Lat', 'Lng',
+    ];
+    const rows = mySensors.map((r) => [
+      r.id,
+      r.name,
+      r.site || '',
+      r.status,
+      r.lastSeen || r.lastPing || '',
+      r.battery ?? '',
+      r.temp ?? '',
+      r.lat ?? '',
+      r.lng ?? '',
+    ]);
     downloadCSV('my-sensors.csv', headers, rows);
-    showToast('CSV downloaded');
+    showToast('CSV downloaded', 'success');
   }
 
   return (

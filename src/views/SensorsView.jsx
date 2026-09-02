@@ -13,13 +13,13 @@ export default function SensorsView({ onNavigate }) {
   const showToast = useToast();
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [drawer, setDrawer] = useState(null); // { mode: 'add'|'edit'|'view', sensorId }
+  const [drawer, setDrawer] = useState(null);
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
     let list = sensors.filter(r =>
       r.id.toLowerCase().includes(q) || r.name.toLowerCase().includes(q) ||
-      r.imei.includes(q) || ownerName(users, r).toLowerCase().includes(q) ||
+      (r.imei || '').includes(q) || ownerName(users, r).toLowerCase().includes(q) ||
       boardById(boardCatalog, r.boardId).name.toLowerCase().includes(q)
     );
     if (statusFilter) list = list.filter(r => r.status === statusFilter);
@@ -29,13 +29,28 @@ export default function SensorsView({ onNavigate }) {
   const activeSensor = drawer && drawer.sensorId ? sensors.find(s => s.id === drawer.sensorId) : null;
 
   function exportCSV() {
-    const headers = ['Sensor ID', 'Name', 'Board', 'IMEI', 'SIM', 'Subscription', 'Expiry', 'Assigned To', 'Battery (%)', 'Signal (dBm)', 'Firmware', 'Status'];
-    const rows = filtered.map(r => [
-      r.id, r.name, boardById(boardCatalog, r.boardId).name, r.imei, r.simNo || '',
-      r.subscriptionPlan, r.subscriptionExpiry, ownerName(users, r), r.battery, r.signal, r.fw, r.status,
+    const headers = [
+      'Sensor ID', 'Name', 'Site', 'Board', 'IMEI', 'Status', 'Last seen',
+      'Battery (%)', 'Temp', 'Lat', 'Lng', 'Subscription', 'Expiry', 'Assigned To',
+    ];
+    const rows = filtered.map((r) => [
+      r.id,
+      r.name,
+      r.site || r.tag || '',
+      boardById(boardCatalog, r.boardId).name,
+      r.imei || '',
+      r.status,
+      r.lastSeen || r.lastPing || '',
+      r.battery ?? '',
+      r.temp ?? '',
+      r.lat ?? r.latitude ?? '',
+      r.lng ?? r.longitude ?? '',
+      r.subscriptionPlan || '',
+      r.subscriptionExpiry || '',
+      ownerName(users, r),
     ]);
     downloadCSV('justedge-sensors.csv', headers, rows);
-    showToast('CSV downloaded');
+    showToast('Fleet CSV downloaded', 'success');
   }
 
   const drawerTitle = drawer?.mode === 'add' ? 'Add sensor'

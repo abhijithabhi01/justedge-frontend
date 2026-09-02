@@ -11,6 +11,8 @@ import SuperAdminAdminsView from './views/SuperAdminAdminsView.jsx';
 import { useAuth } from './context/AuthContext.jsx';
 import { useData } from './context/DataContext.jsx';
 import { PageLoader } from './components/Spinner.jsx';
+import DemoTutorial from './components/DemoTutorial.jsx';
+import DemoBanner from './components/DemoBanner.jsx';
 
 const SUPERADMIN_ONLY_VIEWS = new Set(['admins']);
 const REMOVED_SUPERADMIN_VIEWS = new Set(['activity', 'access', 'oversight']);
@@ -37,6 +39,7 @@ function AdminLayout() {
 
   return (
     <div className="app">
+      <DemoTutorial />
       <Sidebar view={view} onNavigate={goTo} mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
       <div className="main">
         <Topbar view={view} onMenuClick={() => setMobileNavOpen(true)} />
@@ -78,7 +81,7 @@ function RequireAdminOperations({ children }) {
 
 export default function AdminApp() {
   return (
-    <Routes>
+  <>  <Routes>
       <Route element={<AdminLayout />}>
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<DashboardView />} />
@@ -88,7 +91,11 @@ export default function AdminApp() {
         <Route path="boards" element={<RequireSuperadmin><BoardsView /></RequireSuperadmin>} />
         <Route path="admins" element={<RequireSuperadmin><SuperAdminAdminsView /></RequireSuperadmin>} />
         <Route path="*" element={<Navigate to="dashboard" replace />} />
+        
       </Route>
     </Routes>
+            <DemoBanner />
+<DemoTutorial />
+    </>
   );
 }
