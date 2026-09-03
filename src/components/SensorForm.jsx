@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useData } from '../context/DataContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { boardById, formatMacInput, isValidMac } from '../lib/helpers.js';
+import LocationSearch from './LocationSearch.jsx';
 
 export default function SensorForm({ sensor, onDone, lockedUserId }) {
   const {
@@ -28,9 +29,11 @@ export default function SensorForm({ sensor, onDone, lockedUserId }) {
   const [assignUserId, setAssignUserId] = useState(
     sensor?.assignedUserId || lockedUserId || ''
   );
+  const [site, setSite] = useState(sensor?.site || '');
+  const [lat, setLat] = useState(sensor?.lat || '');
+  const [lng, setLng] = useState(sensor?.lng || '');
   const [awsDeviceId, setAwsDeviceId] = useState(sensor?.awsDeviceId || '');
   const [error, setError] = useState('');
-
   const board = boardId ? boardById(boardCatalog, boardId) : null;
   const isLora = board?.conn === 'LoRaWAN';
 
@@ -45,7 +48,7 @@ export default function SensorForm({ sensor, onDone, lockedUserId }) {
 
   function fail(msg) {
     setError(msg);
-    showToast(msg, 'error'); // toast on every validation error
+    showToast(msg, 'error');
   }
 
   function submit() {
@@ -116,36 +119,33 @@ export default function SensorForm({ sensor, onDone, lockedUserId }) {
         <label>
           Select board <span className="req">*</span>
         </label>
-        <div className="board-grid">
+        <select
+          className="input"
+          value={boardId || ''}
+          onChange={(e) => setBoardId(e.target.value || null)}
+        >
+          <option value="">Choose board type…</option>
           {(boardCatalog || []).map((b) => (
-            <div
-              key={b.id}
-              className={`board-pick${boardId === b.id ? ' selected' : ''}`}
-              onClick={() => setBoardId(b.id)}
-            >
-              <div className="board-pick-name">
-                <svg>
-                  <use href="#i-cpu" />
-                </svg>
-                {b.name}
-              </div>
-              <div className="board-pick-meta">
-                {b.conn} · {b.probes} probe{b.probes > 1 ? 's' : ''}
-              </div>
-              <div className="board-pick-desc">{b.desc}</div>
-            </div>
+            <option key={b.id} value={b.id}>
+              {b.name}
+              {b.category ? ` · ${b.category}` : ''}
+              {b.conn ? ` · ${b.conn}` : ''}
+            </option>
           ))}
-        </div>
+        </select>
         {!(boardCatalog || []).length && (
           <div className="hint" style={{ color: 'var(--danger, #b91c1c)' }}>
-            No board types loaded. In demo, restart after updating mockData /
-            DataContext catalog.
+            No board types loaded. Add boards in Board Catalog first.
           </div>
         )}
-        <div className="hint">
-          Choose the hardware board this sensor uses. Supports Wi-Fi, LoRaWAN,
-          NB-IoT and Modbus boards.
-        </div>
+        {board && (
+          <div className="hint">
+            {(board.desc || board.conn || 'Selected board').toString()}
+            {Array.isArray(board.probes) && board.probes.length
+              ? ` · Probes: ${board.probes.join(', ')}`
+              : ''}
+          </div>
+        )}
       </div>
       {awsBoards.length > 0 && (
         <div className="field">
@@ -200,6 +200,18 @@ export default function SensorForm({ sensor, onDone, lockedUserId }) {
           placeholder="e.g. 3C:71:BF:0A:12:0A"
         />
       </div>
+<div className="field">
+  <label>Device location</label>
+  <LocationSearch
+    value={site}
+    placeholder="Search city, area, or landmark…"
+    onSelect={({ site: s, lat: la, lng: ln, label }) => {
+      setSite(s || label || '');
+      setLat(la != null ? String(la) : '');
+      setLng(ln != null ? String(ln) : '');
+    }}
+  />
+</div>
       <div className="field-row2">
         <div className="field">
           <label>
@@ -256,4 +268,4 @@ export default function SensorForm({ sensor, onDone, lockedUserId }) {
       </button>
     </>
   );
-}
+}  

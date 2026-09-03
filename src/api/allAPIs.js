@@ -187,3 +187,9 @@ export const getDemoLiveAPI = () =>
 
 export const demoLoginAPI = (role) =>
   apiRequest('/api/demo/login', { method: 'POST', body: { role } });
+
+export const createBillingPlanAPI = (body, token) =>
+  apiRequest('/api/billing/plans', { method: 'POST', body, token });
+
+export const updateBillingPlanAPI = (id, body, token) =>
+  apiRequest(`/api/billing/plans/${id}`, { method: 'PATCH', body, token });

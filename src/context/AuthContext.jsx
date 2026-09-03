@@ -1,7 +1,9 @@
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from 'react';
 
@@ -19,6 +21,46 @@ function loadSession() {
   } catch {
     return null;
   }
+}
+
+function buildDemoSession(type) {
+  if (type === 'admin') {
+    return {
+      type: 'admin',
+      isDemo: true,
+      token: 'demo-admin',
+      adminId: 'demo-admin-1',
+      name: 'Demo Admin',
+      role: 'Admin',
+      account: {
+        id: 'demo-admin-1',
+        name: 'Demo Admin',
+        email: 'demo.admin@justedge.io',
+        role: 'Admin',
+        status: 'active',
+        companyName: 'Just Embedded Demo',
+      },
+    };
+  }
+  return {
+    type: 'user',
+    isDemo: true,
+    token: 'demo-user',
+    userId: 'demo-user-1',
+    name: 'Demo User',
+    role: 'User',
+    account: {
+      id: 'demo-user-1',
+      name: 'Demo User',
+      email: 'demo.user@justedge.io',
+      role: 'User',
+      status: 'active',
+      permissions: {
+        monitorSensors: true,
+        exportData: true,
+      },
+    },
+  };
 }
 
 export function AuthProvider({ children }) {
@@ -72,9 +114,9 @@ export function AuthProvider({ children }) {
     return () => {
       cancelled = true;
     };
-  }, [session?.token]);
+  }, [session?.token, session?.isDemo]);
 
-  async function login(email, password) {
+  const login = useCallback(async (email, password) => {
     const data = await loginAPI({
       email: email.trim(),
       password,
@@ -106,73 +148,46 @@ export function AuthProvider({ children }) {
     setAuthToken(nextSession.token);
     setSession(nextSession);
     return nextSession;
-  }
+  }, []);
 
-  function logout() {
-    const token = session?.token;
-    if (token && !session?.isDemo) {
-      logoutAPI(token).catch(() => {});
-    }
+  const logout = useCallback(() => {
+    setSession((current) => {
+      const token = current?.token;
+      if (token && !current?.isDemo) {
+        logoutAPI(token).catch(() => {});
+      }
+      return null;
+    });
     setAuthToken(null);
-    setSession(null);
-  }
+  }, []);
 
-  function loginDemo(type) {
-    if (type === 'admin') {
-      const next = {
-        type: 'admin',
-        isDemo: true,
-        token: 'demo-admin',
-        adminId: 'demo-admin-1',
-        name: 'Demo Admin',
-        role: 'Admin',
-        account: {
-          id: 'demo-admin-1',
-          name: 'Demo Admin',
-          email: 'demo.admin@justedge.io',
-          role: 'Admin',
-          status: 'active',
-          companyName: 'Just Embedded Demo',
-        },
-      };
-      setAuthToken(null);
-      setSession(next);
+  const loginDemo = useCallback((type) => {
+    const next = buildDemoSession(type === 'admin' ? 'admin' : 'user');
+    setAuthToken(null);
+    setSession((current) => {
+      // Avoid redundant updates that would re-trigger dependent effects
+      if (
+        current?.isDemo &&
+        current.type === next.type &&
+        current.token === next.token
+      ) {
+        return current;
+      }
       return next;
-    }
-
-    const next = {
-      type: 'user',
-      isDemo: true,
-      token: 'demo-user',
-      userId: 'demo-user-1',
-      name: 'Demo User',
-      role: 'User',
-      account: {
-        id: 'demo-user-1',
-        name: 'Demo User',
-        email: 'demo.user@justedge.io',
-        role: 'User',
-        status: 'active',
-        permissions: {
-          monitorSensors: true,
-          exportData: true,
-        },
-      },
-    };
-    setAuthToken(null);
-    setSession(next);
+    });
     return next;
-  }
+  }, []);
 
   const isSuperadmin =
     session?.type === 'admin' && session?.role === 'Superadmin';
 
+  const value = useMemo(
+    () => ({ session, login, loginDemo, logout, isSuperadmin }),
+    [session, login, loginDemo, logout, isSuperadmin]
+  );
+
   return (
-    <AuthContext.Provider
-      value={{ session, login, loginDemo, logout, isSuperadmin }}
-    >
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
   );
 }
 

@@ -128,7 +128,7 @@ function LiveTicker() {
   );
 }
 
-export default function LandingPage({ onEnter }) {
+export default function LandingPage({ onEnter, onDemo }) {
   const { sensors, users } = useData();
   const [statsActive, setStatsActive] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -220,14 +220,22 @@ export default function LandingPage({ onEnter }) {
           not after the damage is done.
         </p>
         <div className="lp-hero-byline">JustEdge is sold by <b>JustEmbedded</b>, engineered and manufactured by <b>Susima Smaart Solutions</b>.</div>
-        <div className="lp-hero-actions">
-          <button className="btn btn-amber lp-btn-lg" onClick={onEnter}>
-            <svg><use href="#i-zap" /></svg>Get started
-          </button>
-          <button className="btn btn-ghost lp-btn-lg" onClick={onEnter}>
-            View live demo<svg><use href="#i-chev" /></svg>
-          </button>
-        </div>
+<div className="lp-hero-actions">
+  <button className="btn btn-amber lp-btn-lg" type="button" onClick={onEnter}>
+    <svg><use href="#i-zap" /></svg>Get started
+  </button>
+  <button
+    className="btn btn-ghost lp-btn-lg"
+    type="button"
+    onClick={(e) => {
+      e.preventDefault();
+      if (typeof onDemo === 'function') onDemo();
+      else window.location.assign('/demo/admin');
+    }}
+  >
+    View live demo<svg><use href="#i-chev" /></svg>
+  </button>
+</div>
 
         <div className="lp-stats-row">
           <Stat label="Sensors tracked" value={sensors.length || 20} active={statsActive} />

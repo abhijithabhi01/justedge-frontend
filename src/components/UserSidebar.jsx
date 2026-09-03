@@ -24,7 +24,7 @@ export default function UserSidebar({ view, onNavigate, user, mySensors, mobileO
     {mobileOpen && <div className="sidebar-overlay open" onClick={onClose}></div>}
     <aside className={`sidebar${mobileOpen ? ' mobile-open' : ''}`}>
       <div className="sidebar-brand">
-        <div className="brand-mark"><svg><use href="#i-thermo" /></svg></div>
+
         <div><div className="brand-name">JustEdge</div><div className="brand-sub">User dashboard</div></div>
       </div>
       <button className="sidebar-status sidebar-profile-trigger" onClick={() => setProfileOpen(true)} title="View your profile & permissions">

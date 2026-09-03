@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { useData } from '../context/DataContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
-import { initials } from '../lib/helpers.js';
 
 function SensorTicker() {
   const { sensors } = useData();
@@ -51,19 +49,10 @@ const BRAND_POINTS = [
 ];
 
 export default function LoginPage({ onBack }) {
-  const { login, loginDemo } = useAuth();
-  const [searchParams] = useSearchParams();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-
-  // Direct links: /login?demo=admin  |  /login?demo=user
-  useEffect(() => {
-    const demo = String(searchParams.get('demo') || '').toLowerCase();
-    if (demo === 'admin' || demo === 'user') {
-      loginDemo(demo);
-    }
-  }, [searchParams, loginDemo]);
 
   async function submit(e) {
     e.preventDefault();
@@ -75,11 +64,6 @@ export default function LoginPage({ onBack }) {
     } catch (err) {
       setError(err.message || 'Invalid email or password.');
     }
-  }
-
-  function enterDemo(type) {
-    setError('');
-    loginDemo(type);
   }
 
   return (
@@ -146,90 +130,6 @@ export default function LoginPage({ onBack }) {
             Sign in
           </button>
         </form>
-
-        <div
-          style={{
-            marginTop: 28,
-            paddingTop: 20,
-            borderTop: '1px solid var(--border-soft, #e5e7eb)',
-          }}
-        >
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              letterSpacing: '0.04em',
-              textTransform: 'uppercase',
-              color: 'var(--text-sub, #6b7280)',
-              marginBottom: 12,
-            }}
-          >
-            Try a demo
-          </div>
-          <p
-            style={{
-              fontSize: 13,
-              color: 'var(--text-sub, #6b7280)',
-              margin: '0 0 12px',
-              lineHeight: 1.45,
-            }}
-          >
-            Explore the console with sample data. Nothing is saved to the live
-            system.
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <button
-              type="button"
-              className="btn btn-ghost btn-block"
-              onClick={() => enterDemo('admin')}
-              style={{ justifyContent: 'flex-start', gap: 10 }}
-            >
-              <span
-                className="entity-avatar"
-                style={{
-                  width: 28,
-                  height: 28,
-                  fontSize: 11,
-                  borderRadius: 8,
-                  flexShrink: 0,
-                }}
-              >
-                {initials('Demo Admin')}
-              </span>
-              <span style={{ textAlign: 'left' }}>
-                <strong style={{ display: 'block', fontSize: 13 }}>Demo Admin</strong>
-                <span style={{ fontSize: 12, opacity: 0.75 }}>
-                  Fleet, users, sensors &amp; map
-                </span>
-              </span>
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost btn-block"
-              onClick={() => enterDemo('user')}
-              style={{ justifyContent: 'flex-start', gap: 10 }}
-            >
-              <span
-                className="entity-avatar"
-                style={{
-                  width: 28,
-                  height: 28,
-                  fontSize: 11,
-                  borderRadius: 8,
-                  flexShrink: 0,
-                }}
-              >
-                {initials('Demo User')}
-              </span>
-              <span style={{ textAlign: 'left' }}>
-                <strong style={{ display: 'block', fontSize: 13 }}>Demo User</strong>
-                <span style={{ fontSize: 12, opacity: 0.75 }}>
-                  Assigned sensors &amp; live GPS
-                </span>
-              </span>
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -7,7 +7,7 @@ import BatteryChart from '../components/charts/BatteryChart.jsx';
 import BoardChart from '../components/charts/BoardChart.jsx';
 import OwnerChart from '../components/charts/OwnerChart.jsx';
 import GpsMap from '../components/GpsMap.jsx';
-
+import FleetMap from '../components/FleetMap.jsx';
 // ── Small inline helpers ────────────────────────────────────────────────────
 
 function fmt(v, unit = '', decimals = 1) {
@@ -257,7 +257,28 @@ export default function DashboardView() {
   ];
 
   const kpis = isSuperadmin ? superadminKpis : adminKpis;
-
+{isSuperadmin ? (
+  <FleetMap
+    title="All device locations"
+    height={360}
+    markers={sensors.map((s) => ({
+      id: s.id,
+      lat: s.latitude ?? s.lat,
+      lng: s.longitude ?? s.lng,
+      label: s.name || s.id,
+      status: s.status,
+    }))}
+  />
+) : (
+  primaryGps && (
+    <GpsMap
+      latitude={primaryGps.latitude ?? primaryGps.lat}
+      longitude={primaryGps.longitude ?? primaryGps.lng}
+      label={primaryGps.name || primaryGps.awsDeviceId || 'GPS board'}
+      height={320}
+    />
+  )
+)}
   return (
     <section className="view active">
       {/* ── KPI cards ─────────────────────────────────────────────────── */}

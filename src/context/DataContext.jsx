@@ -979,6 +979,7 @@ subscriptionPlans: (DEMO_SUBSCRIPTION_PLANS || []).map((p) => ({ ...p })),
     [token, loadData]
   );
 
+
   const removeBoard = useCallback(
     async (id) => {
       await deleteBoardCatalogAPI(id, token);
@@ -987,17 +988,62 @@ subscriptionPlans: (DEMO_SUBSCRIPTION_PLANS || []).map((p) => ({ ...p })),
     [token, loadData]
   );
 
+  const addBillingPlan = useCallback(
+    async (plan) => {
+      if (session?.isDemo) {
+        setState((prev) => ({
+          ...prev,
+          subscriptionPlans: [...(prev.subscriptionPlans || []), { ...plan }],
+        }));
+        return plan;
+      }
+      await createBillingPlanAPI(plan, token);
+      await loadData();
+      return plan;
+    },
+    [token, loadData, session?.isDemo]
+  );
+
+  const updateBillingPlan = useCallback(
+    async (id, patch) => {
+      if (session?.isDemo) {
+        setState((prev) => ({
+          ...prev,
+          subscriptionPlans: (prev.subscriptionPlans || []).map((p) =>
+            p.id === id ? { ...p, ...patch } : p
+          ),
+        }));
+        return;
+      }
+      await updateBillingPlanAPI(id, patch, token);
+      await loadData();
+    },
+    [token, loadData, session?.isDemo]
+  );
+
+  const resetDemo = useCallback(() => {
+    if (!session?.isDemo) return;
+    setState({
+      ...EMPTY_STATE,
+      sensors: (DEMO_SENSORS || []).map((s) => ({ ...s })),
+      users: [DEMO_USER],
+      alerts: (DEMO_ALERTS || []).map((a) => ({ ...a })),
+      automations: (DEMO_AUTOMATIONS || []).map((a) => ({ ...a })),
+      adminAccounts: session.type === 'admin' ? [DEMO_ADMIN] : [],
+      activityLogs: (DEMO_ACTIVITY || []).map((a) => ({ ...a })),
+      boardCatalog: (DEMO_BOARD_CATALOG || []).map((b) => ({ ...b })),
+      subscriptionPlans: (DEMO_SUBSCRIPTION_PLANS || []).map((p) => ({ ...p })),
+      accessControl: { roles: ['Admin', 'User'], matrix: {} },
+    });
+  }, [session?.isDemo, session?.type]);
+
+  // ONLY AFTER the two callbacks above:
   const value = {
-
     ...state,
-
     loading,
-
     error,
-
-    refresh:
-      loadData,
-
+    refresh: loadData,
+    resetDemo,
 
     addSensor,
     updateSensor,
@@ -1030,16 +1076,17 @@ subscriptionPlans: (DEMO_SUBSCRIPTION_PLANS || []).map((p) => ({ ...p })),
     addBoard,
     updateBoard,
     removeBoard,
+
+    addBillingPlan,
+    updateBillingPlan,
   };
 
-
   return (
-    <DataContext.Provider
-      value={value}
-    >
+    <DataContext.Provider value={value}>
       {children}
     </DataContext.Provider>
   );
+
 }
 
 

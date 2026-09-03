@@ -1,10 +1,12 @@
 import React from 'react';
 import { useData } from '../context/DataContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
+import { useConfirm } from '../context/ConfirmContext.jsx';
 import { boardById, planById, userById, battColor, daysUntil, timeAgo } from '../lib/helpers.js';
 
 export default function SensorCard({ sensor, onView, onEdit, canEdit = true, canRemove = true }) {
   const { boardCatalog, subscriptionPlans, users, removeSensor } = useData();
+  const confirm = useConfirm();
   const showToast = useToast();
   const board = boardById(boardCatalog, sensor.boardId);
   const plan = planById(subscriptionPlans, sensor.subscriptionPlan);
@@ -77,7 +79,21 @@ export default function SensorCard({ sensor, onView, onEdit, canEdit = true, can
             <button
               className="icon-btn-sm"
               title="Remove"
-              onClick={(e) => { e.stopPropagation(); removeSensor(sensor.id); showToast(`${sensor.id} removed`); }}
+              onClick={async (e) => {
+                e.stopPropagation();
+                const ok = await confirm({
+                  title: 'Remove sensor?',
+                  message: `This permanently removes "${sensor.name || sensor.id}" from the fleet. This cannot be undone.`,
+                  confirmLabel: 'Remove',
+                });
+                if (!ok) return;
+                try {
+                  await removeSensor(sensor.id);
+                  showToast(`${sensor.name || sensor.id} removed`, 'success');
+                } catch (err) {
+                  showToast(err.message || 'Could not remove sensor', 'error');
+                }
+              }}
             >
               <svg><use href="#i-trash" /></svg>
             </button>

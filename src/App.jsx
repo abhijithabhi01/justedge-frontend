@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import Icons from './components/Icons.jsx';
 import AdminApp from './AdminApp.jsx';
@@ -10,31 +10,71 @@ import { ToastProvider } from './context/ToastContext.jsx';
 import { ConfirmProvider } from './context/ConfirmContext.jsx';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 
-// Signed-in users shouldn't see the marketing landing page — send them
-// straight into the app instead.
 function LandingRoute() {
   const { session } = useAuth();
   const navigate = useNavigate();
-  if (session) return <Navigate to="/app" replace />;
-  return <LandingPage onEnter={() => navigate('/login')} />;
+  if (session && !session.isDemo) return <Navigate to="/app" replace />;
+  return (
+    <LandingPage
+      onEnter={() => navigate('/login')}
+      onDemo={() => navigate('/demo/admin')}
+    />
+  );
 }
 
-// Same idea for the login screen: already-signed-in users skip it, and
-// "back" from here returns to the landing page instead of a dead end.
 function LoginRoute() {
   const { session } = useAuth();
   const navigate = useNavigate();
-  if (session) return <Navigate to="/app" replace />;
+  if (session && !session.isDemo) return <Navigate to="/app" replace />;
   return <LoginPage onBack={() => navigate('/')} />;
 }
 
-// The protected app shell. No session (including right after a logout,
-// since this re-evaluates whenever the auth context changes) bounces back
-// to /login automatically.
 function AppRoute() {
   const { session } = useAuth();
   if (!session) return <Navigate to="/login" replace />;
+  if (session.isDemo) {
+    return (
+      <Navigate
+        to={session.type === 'admin' ? '/demo/admin' : '/demo/user'}
+        replace
+      />
+    );
+  }
   if (session.type === 'admin') return <AdminApp />;
+  return <UserApp userId={session.userId} />;
+}
+
+function DemoAdminRoute() {
+  const { session, loginDemo } = useAuth();
+
+  useEffect(() => {
+    loginDemo('admin');
+  }, [loginDemo]);
+
+  if (!session?.isDemo || session.type !== 'admin') {
+    return (
+      <div style={{ padding: 48, textAlign: 'center', color: '#64748b' }}>
+        Loading demo…
+      </div>
+    );
+  }
+  return <AdminApp />;
+}
+
+function DemoUserRoute() {
+  const { session, loginDemo } = useAuth();
+
+  useEffect(() => {
+    loginDemo('user');
+  }, [loginDemo]);
+
+  if (!session?.isDemo || session.type !== 'user') {
+    return (
+      <div style={{ padding: 48, textAlign: 'center', color: '#64748b' }}>
+        Loading demo…
+      </div>
+    );
+  }
   return <UserApp userId={session.userId} />;
 }
 
@@ -43,6 +83,9 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<LandingRoute />} />
       <Route path="/login" element={<LoginRoute />} />
+      <Route path="/demo" element={<Navigate to="/demo/admin" replace />} />
+      <Route path="/demo/admin/*" element={<DemoAdminRoute />} />
+      <Route path="/demo/user/*" element={<DemoUserRoute />} />
       <Route path="/app/*" element={<AppRoute />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

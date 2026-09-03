@@ -12,6 +12,9 @@ const NAV = {
   ],
   superAdmin: [
     { id: 'admins', label: 'Admin Accounts', icon: 'i-user-plus' },
+    { id: 'plans', label: 'Subscription Plans', icon: 'i-receipt' },
+    { id: 'revenue', label: 'Revenue & Business', icon: 'i-chart' },
+    { id: 'fleet-health', label: 'Fleet & Device Health', icon: 'i-wifi' },
   ],
 };
 
@@ -21,7 +24,9 @@ export default function Sidebar({ view, onNavigate, mobileOpen, onClose }) {
   const online = sensors.filter(s => s.status === 'online').length;
 
   const manageItems = NAV.manage.filter((item) => {
+    // Assign is admin-operations only; board catalog is superadmin-only
     if (item.id === 'assign' && isSuperadmin) return false;
+    if (item.id === 'boards' && !isSuperadmin) return false;
     return true;
   });
 
