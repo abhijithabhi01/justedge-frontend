@@ -36,6 +36,13 @@ export default function SensorForm({ sensor, onDone, lockedUserId }) {
   const [error, setError] = useState('');
   const board = boardId ? boardById(boardCatalog, boardId) : null;
   const isLora = board?.conn === 'LoRaWAN';
+  // GPS boards get coordinates from AWS telemetry — hide manual location picker
+  const isGps = Boolean(
+    board &&
+      (String(board.id || '').toLowerCase().includes('gps') ||
+        String(board.name || '').toLowerCase().includes('gps') ||
+        String(board.conn || '').toLowerCase() === 'gps')
+  );
 
   const takenAwsIds = new Set(
     sensors
@@ -81,9 +88,9 @@ export default function SensorForm({ sensor, onDone, lockedUserId }) {
       subscriptionExpiry: expiry,
       assignedUserId: assignUserId || null,
       awsDeviceId: awsDeviceId || null,
-      site: site || undefined,
-      lat: lat ?? undefined,
-      lng: lng ?? undefined,
+      site: isGps ? undefined : (site || undefined),
+      lat: isGps ? undefined : (lat ?? undefined),
+      lng: isGps ? undefined : (lng ?? undefined),
     };
 
     try {
@@ -208,18 +215,35 @@ export default function SensorForm({ sensor, onDone, lockedUserId }) {
           placeholder="e.g. 3C:71:BF:0A:12:0A"
         />
       </div>
-<div className="field">
-  <label>Device location</label>
-  <LocationSearch
-    value={site}
-    placeholder="Search city, area, or landmark…"
-    onSelect={({ site: s, lat: la, lng: ln, label }) => {
-      setSite(s || label || '');
-      setLat(la != null ? String(la) : '');
-      setLng(ln != null ? String(ln) : '');
-    }}
-  />
-</div>
+{!isGps && (
+        <div className="field">
+          <label>Device location</label>
+          <LocationSearch
+            value={site}
+            placeholder="Search city, area, or landmark…"
+            onSelect={({ site: s, lat: la, lng: ln, label }) => {
+              setSite(s || label || '');
+              setLat(la != null ? String(la) : '');
+              setLng(ln != null ? String(ln) : '');
+            }}
+          />
+        </div>
+      )}
+      {isGps && (
+        <div
+          className="field"
+          style={{
+            fontSize: 12.5,
+            color: 'var(--text-muted)',
+            padding: '8px 12px',
+            background: 'var(--surface-2)',
+            borderRadius: 10,
+            lineHeight: 1.45,
+          }}
+        >
+          GPS board — location comes from live AWS coordinates (no fixed site needed).
+        </div>
+      )}
       <div className="field-row2">
         <div className="field">
           <label>
