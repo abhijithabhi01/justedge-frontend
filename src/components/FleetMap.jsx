@@ -28,8 +28,16 @@ function loadLeaflet() {
   });
 }
 
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 /**
- * Multi-marker map for Superadmin fleet overview.
+ * Multi-marker map for fleet overview.
  * markers: [{ id, lat, lng, label, status }]
  */
 export default function FleetMap({ markers = [], height = 360, title = 'All device locations' }) {
@@ -71,21 +79,45 @@ export default function FleetMap({ markers = [], height = 360, title = 'All devi
         }
         const bounds = [];
         points.forEach((p) => {
-          const color = p.status === 'online' ? '#16a34a' : p.status === 'offline' ? '#dc2626' : '#f59e0b';
+          const color =
+            p.status === 'online' ? '#16a34a' : p.status === 'offline' ? '#dc2626' : '#f59e0b';
+          const name = escapeHtml(p.label || p.name || p.id || 'Device');
           const icon = L.divIcon({
-            className: '',
-            html: `<div style="width:14px;height:14px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>`,
-            iconSize: [14, 14],
-            iconAnchor: [7, 7],
+            className: 'fleet-map-marker',
+            html: `
+              <div style="display:flex;flex-direction:column;align-items:center;gap:2px;pointer-events:none;">
+                <div style="
+                  max-width:140px;
+                  padding:2px 7px;
+                  border-radius:6px;
+                  background:rgba(15,23,42,0.88);
+                  color:#fff;
+                  font:600 11px/1.3 system-ui,sans-serif;
+                  white-space:nowrap;
+                  overflow:hidden;
+                  text-overflow:ellipsis;
+                  box-shadow:0 1px 4px rgba(0,0,0,.35);
+                ">${name}</div>
+                <div style="
+                  width:14px;height:14px;border-radius:50%;
+                  background:${color};
+                  border:2px solid #fff;
+                  box-shadow:0 1px 4px rgba(0,0,0,.4);
+                "></div>
+              </div>
+            `,
+            iconSize: [140, 36],
+            iconAnchor: [70, 34],
           });
           const marker = L.marker([p.lat, p.lng], { icon }).addTo(layer);
           marker.bindPopup(
-            `<strong>${p.label || p.name || p.id || 'Device'}</strong><br/>${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`
+            `<strong>${name}</strong><br/>${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}` +
+              (p.status ? `<br/><span style="color:${color}">● ${escapeHtml(p.status)}</span>` : '')
           );
           bounds.push([p.lat, p.lng]);
         });
         if (bounds.length === 1) map.setView(bounds[0], 14);
-        else map.fitBounds(bounds, { padding: [28, 28] });
+        else map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
         setTimeout(() => map.invalidateSize(), 80);
       } catch (err) {
         console.error('[FleetMap]', err);
@@ -114,12 +146,33 @@ export default function FleetMap({ markers = [], height = 360, title = 'All devi
       <div className="card-title-sub">
         {points.length
           ? `${points.length} device${points.length !== 1 ? 's' : ''} with GPS coordinates`
-          : 'No devices reporting coordinates yet'}
+          : 'No sensors with location data yet'}
       </div>
-      <div
-        ref={mapRef}
-        style={{ height, width: '100%', borderRadius: 12, marginTop: 12, zIndex: 0 }}
-      />
+      {!points.length && (
+        <div
+          style={{
+            marginTop: 12,
+            padding: '48px 20px',
+            textAlign: 'center',
+            borderRadius: 12,
+            background: 'var(--surface-2)',
+            color: 'var(--text-muted)',
+            fontSize: 13.5,
+            lineHeight: 1.55,
+          }}
+        >
+          <div style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: 6 }}>
+            No sensor locations to show
+          </div>
+          Add a sensor with GPS coordinates (or link an AWS GPS board) to see markers with device names on this map.
+        </div>
+      )}
+      {points.length > 0 && (
+        <div
+          ref={mapRef}
+          style={{ height, width: '100%', borderRadius: 12, marginTop: 12, zIndex: 0 }}
+        />
+      )}
     </div>
   );
 }

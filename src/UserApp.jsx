@@ -46,6 +46,7 @@ function UserLayout({ user, mySensors }) {
         onClose={() => setMobileNavOpen(false)}
       />
       <div className="main">
+        <DemoBanner />
         <UserTopbar
           view={view}
           user={user}
@@ -135,17 +136,7 @@ export default function UserApp({ userId }) {
   );
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        minHeight: '100vh',
-        width: '100%',
-      }}
-    >
-      <DemoBanner />
-      <div style={{ flex: '1 1 auto', minHeight: 0 }}>
-        <Routes>
+    <Routes>
           <Route element={<UserLayout user={user} mySensors={mySensors} />}>
             <Route index element={<Navigate to="overview" replace />} />
             <Route
@@ -178,7 +169,5 @@ export default function UserApp({ userId }) {
             <Route path="*" element={<Navigate to="overview" replace />} />
           </Route>
         </Routes>
-      </div>
-    </div>
   );
 }

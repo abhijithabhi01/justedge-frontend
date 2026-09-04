@@ -51,7 +51,7 @@ export default function SensorForm({ sensor, onDone, lockedUserId }) {
     showToast(msg, 'error');
   }
 
-  function submit() {
+  async function submit() {
     setError('');
     if (!name.trim()) return fail('Enter a sensor name or location.');
     if (!board) return fail('Select a board type.');
@@ -67,6 +67,9 @@ export default function SensorForm({ sensor, onDone, lockedUserId }) {
       return fail('That MAC address is already registered to another sensor.');
     if (!plan) return fail('Select a subscription plan.');
     if (!expiry) return fail('Set a subscription expiry date.');
+    if (!editing && awsBoards.length > 0 && !awsDeviceId) {
+      return fail('Select a live AWS device that is not already assigned.');
+    }
 
     const payload = {
       name: name.trim(),
@@ -78,27 +81,32 @@ export default function SensorForm({ sensor, onDone, lockedUserId }) {
       subscriptionExpiry: expiry,
       assignedUserId: assignUserId || null,
       awsDeviceId: awsDeviceId || null,
+      site: site || undefined,
+      lat: lat ?? undefined,
+      lng: lng ?? undefined,
     };
 
-    if (editing) {
-      updateSensor(sensor.id, payload);
-      showToast(`${sensor.id} updated`, 'success');
-    } else {
-      addSensor({
-        ...payload,
-        temp: 22.0,
-        hum: 45,
-        battery: 100,
-        signal: -55,
-        fw: 'v2.4.1',
-        status: 'online',
-        lastPing: 'Just now',
-        base: 22.0,
-        amp: 1.5,
-      });
-      showToast('Sensor added to the fleet', 'success');
+    try {
+      if (editing) {
+        await updateSensor(sensor.id, payload);
+        showToast(`${sensor.id} updated`, 'success');
+      } else {
+        await addSensor(payload);
+        showToast(
+          awsDeviceId
+            ? `Sensor linked to AWS device ${awsDeviceId}`
+            : 'Sensor added to the fleet',
+          'success'
+        );
+      }
+      onDone();
+    } catch (err) {
+      const msg =
+        err?.message ||
+        err?.data?.error ||
+        'Could not save sensor. Check AWS device and try again.';
+      fail(msg);
     }
-    onDone();
   }
 
   return (
@@ -149,7 +157,7 @@ export default function SensorForm({ sensor, onDone, lockedUserId }) {
       </div>
       {awsBoards.length > 0 && (
         <div className="field">
-          <label>Live AWS device (optional)</label>
+          <label>Live AWS device <span className="req">*</span></label>
           <select
             className="input"
             value={awsDeviceId}

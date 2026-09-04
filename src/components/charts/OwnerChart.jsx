@@ -92,6 +92,24 @@ export default function OwnerChart() {
     }
   }
 
+  if (!(sensors || []).length) {
+    return (
+      <div className="card">
+        <div className="card-head">
+          <div>
+            <div className="card-title">
+              {isSuperadmin ? 'Sensors by admin' : 'Sensors by user'}
+            </div>
+            <div className="card-title-sub">No sensors registered</div>
+          </div>
+        </div>
+        <div style={{ padding: '28px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+          No sensors have been added yet.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="card">
       <div className="card-head">

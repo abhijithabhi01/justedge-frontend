@@ -3,8 +3,8 @@ import Chart from 'chart.js/auto';
 
 /**
  * Creates a Chart.js instance on mount / whenever `deps` change, and
- * destroys it on unmount or before re-creating — mirrors the
- * destroy-then-recreate pattern the original vanilla app used.
+ * destroys it on unmount or before re-creating.
+ * If buildConfig returns null/undefined, no chart is created (empty-state UIs).
  */
 export function useChart(buildConfig, deps) {
   const canvasRef = useRef(null);
@@ -14,6 +14,11 @@ export function useChart(buildConfig, deps) {
     if (!canvasRef.current) return undefined;
     const ctx = canvasRef.current.getContext('2d');
     const config = buildConfig(ctx);
+    if (!config) {
+      chartRef.current?.destroy();
+      chartRef.current = null;
+      return undefined;
+    }
     chartRef.current = new Chart(ctx, config);
     return () => {
       chartRef.current?.destroy();

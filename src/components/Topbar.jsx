@@ -15,46 +15,173 @@ const TITLES = {
   oversight: ['Oversight', 'Risk signals and account health beyond the raw logs'],
 };
 
-// Superadmins manage Admin accounts and billing, not the sensor fleet
-// directly — the Dashboard KPIs already reflect that (see DashboardView),
-// this just keeps the header copy consistent with what's actually shown.
 const SUPERADMIN_TITLES = {
   dashboard: ['Dashboard', 'Platform overview · admin accounts & licensing'],
 };
 
+function DetailRow({ label, value }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        gap: 12,
+        padding: '10px 0',
+        borderBottom: '1px solid var(--border-soft, var(--border))',
+        fontSize: 13,
+      }}
+    >
+      <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>{label}</span>
+      <span
+        style={{
+          color: 'var(--text-main)',
+          fontWeight: 600,
+          textAlign: 'right',
+          wordBreak: 'break-word',
+        }}
+      >
+        {value || '—'}
+      </span>
+    </div>
+  );
+}
+
 export default function Topbar({ view, onMenuClick }) {
   const { session, logout, isSuperadmin } = useAuth();
   const [profileOpen, setProfileOpen] = useState(false);
-  const [title, sub] = (isSuperadmin && SUPERADMIN_TITLES[view]) || TITLES[view] || TITLES.dashboard;
+  const [title, sub] =
+    (isSuperadmin && SUPERADMIN_TITLES[view]) || TITLES[view] || TITLES.dashboard;
+
+  const account = session?.account || {};
+  const name = account.name || session?.name || 'Admin';
+  const role = account.role || session?.role || 'Admin';
+  const email = account.email || session?.email || '—';
+  const phone = account.phone || '—';
+  const company = account.companyName || account.company || '—';
+  const status = account.status || 'active';
+  const id = account.id || session?.adminId || session?.userId || '—';
+  const lastLogin = account.lastLogin
+    ? new Date(account.lastLogin).toLocaleString()
+    : '—';
+
 
   return (
     <>
       <header className="topbar">
-        <button className="icon-btn mobile-menu-btn" onClick={onMenuClick} title="Open menu">
-          <svg><use href="#i-menu" /></svg>
+        <button
+          type="button"
+          className="icon-btn mobile-menu-btn"
+          onClick={onMenuClick}
+          title="Open menu"
+        >
+          <svg>
+            <use href="#i-menu" />
+          </svg>
         </button>
-        <div><div className="page-title">{title}</div><div className="page-sub">{sub}</div></div>
-        <div className="topbar-spacer"></div>
+        <div>
+          <div className="page-title">{title}</div>
+          <div className="page-sub">{sub}</div>
+        </div>
+        <div className="topbar-spacer" />
 
-        <button className="profile-btn" onClick={() => setProfileOpen(true)} title="Account & sign out">
-          <div className="entity-avatar">{initials(session?.name || 'Admin')}</div>
-          <span className="profile-btn-name">{session?.name || 'Admin'}{session?.role ? ` · ${session.role}` : ''}</span>
+        <button
+          type="button"
+          className="profile-btn"
+          onClick={() => setProfileOpen(true)}
+          title="Account & sign out"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '8px 12px',
+            backgroundColor: 'var(--bg-secondary)',
+            border: '1px solid var(--border)',
+            borderRadius: 6,
+            cursor: 'pointer',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12)',
+          }}
+        >
+          
+          <span className="profile-btn-name">
+            {name}
+            {role ? ` · ${role}` : ''}
+          </span>
         </button>
-
       </header>
 
       <Modal
         open={profileOpen}
-        title={session?.name || 'Admin'}
-        sub={session?.role ? `${session.role} account` : 'Admin account'}
+        title={name}
+        sub={`${role} account`}
         onClose={() => setProfileOpen(false)}
       >
-        <div className="modal-profile-row">
-          <svg><use href="#i-shield" /></svg>
-          Changes you make here are visible to every admin on this workspace.
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+            marginBottom: 8,
+          }}
+        >
+          <div
+            className="entity-avatar"
+            style={{ width: 48, height: 48, fontSize: 16 }}
+          >
+            {initials(name)}
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <div
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontWeight: 700,
+                fontSize: 16,
+              }}
+            >
+              {name}
+            </div>
+            <div style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
+              {email}
+            </div>
+          </div>
         </div>
-        <button className="btn btn-danger btn-block" onClick={logout} style={{ marginTop: 16 }}>
-          <svg><use href="#i-logout" /></svg>Sign out
+
+        <DetailRow label="Email" value={email} />
+        <DetailRow label="Phone" value={phone} />
+        <DetailRow label="Company" value={company} />
+        <DetailRow label="Role" value={role} />
+        <DetailRow
+          label="Status"
+          value={
+            status === 'active'
+              ? 'Active'
+              : status === 'suspended'
+                ? 'Suspended'
+                : String(status)
+          }
+        />
+        <DetailRow label="Account ID" value={String(id)} />
+        <DetailRow label="Last login" value={lastLogin} />
+
+        <div className="modal-profile-row" style={{ marginTop: 14 }}>
+          <svg>
+            <use href="#i-shield" />
+          </svg>
+          {isSuperadmin
+            ? 'You have full platform access as Superadmin.'
+            : 'Changes you make here apply to your company workspace.'}
+        </div>
+
+        <button
+          type="button"
+          className="btn btn-danger btn-block"
+          onClick={logout}
+          style={{ marginTop: 16 }}
+        >
+          <svg>
+            <use href="#i-logout" />
+          </svg>
+          Sign out
         </button>
       </Modal>
     </>

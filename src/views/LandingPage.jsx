@@ -208,7 +208,7 @@ export default function LandingPage({ onEnter, onDemo }) {
       {mobileNavOpen && <div className="lp-mobile-overlay" onClick={() => setMobileNavOpen(false)} />}
 
       <section className="landing-hero" id="top">
-        <div className="lp-eyebrow"><span className="pulse-dot" />Live fleet monitoring, reimagined</div>
+        
         <h1 className="lp-hero-title">
           JustEdge<br />
           Catch the problem<br />

@@ -71,6 +71,7 @@ function AdminLayout() {
         onClose={() => setMobileNavOpen(false)}
       />
       <div className="main">
+        <DemoBanner />
         <Topbar view={view} onMenuClick={() => setMobileNavOpen(true)} />
         <div className="content">
           {loading ? (
@@ -114,67 +115,55 @@ function RequireAdminOperations({ children }) {
 
 export default function AdminApp() {
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        minHeight: '100vh',
-        width: '100%',
-      }}
-    >
-      <DemoBanner />
-      <div style={{ flex: '1 1 auto', minHeight: 0 }}>
-        <Routes>
-          <Route element={<AdminLayout />}>
-            <Route index element={<Navigate to="dashboard" replace />} />
-            <Route path="dashboard" element={<DashboardView />} />
-            <Route path="sensors" element={<SensorsRoute />} />
-            <Route path="users" element={<UsersView />} />
-            <Route
-              path="assign"
-              element={
-                <RequireAdminOperations>
-                  <AssignRoute />
-                </RequireAdminOperations>
-              }
-            />
-            <Route
-              path="revenue"
-              element={
-                <RequireSuperadmin>
-                  <RevenueBusinessView />
-                </RequireSuperadmin>
-              }
-            />
-            <Route
-              path="fleet-health"
-              element={
-                <RequireSuperadmin>
-                  <FleetHealthView />
-                </RequireSuperadmin>
-              }
-            />
-            <Route path="plans" element={<SubscriptionPlansView />} />
-            <Route
-              path="boards"
-              element={
-                <RequireSuperadmin>
-                  <BoardsView />
-                </RequireSuperadmin>
-              }
-            />
-            <Route
-              path="admins"
-              element={
-                <RequireSuperadmin>
-                  <SuperAdminAdminsView />
-                </RequireSuperadmin>
-              }
-            />
-            <Route path="*" element={<Navigate to="dashboard" replace />} />
-          </Route>
-        </Routes>
-      </div>
-    </div>
+    <Routes>
+      <Route element={<AdminLayout />}>
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<DashboardView />} />
+        <Route path="sensors" element={<SensorsRoute />} />
+        <Route path="users" element={<UsersView />} />
+        <Route
+          path="assign"
+          element={
+            <RequireAdminOperations>
+              <AssignRoute />
+            </RequireAdminOperations>
+          }
+        />
+        <Route
+          path="revenue"
+          element={
+            <RequireSuperadmin>
+              <RevenueBusinessView />
+            </RequireSuperadmin>
+          }
+        />
+        <Route
+          path="fleet-health"
+          element={
+            <RequireSuperadmin>
+              <FleetHealthView />
+            </RequireSuperadmin>
+          }
+        />
+        <Route path="plans" element={<SubscriptionPlansView />} />
+        <Route
+          path="boards"
+          element={
+            <RequireSuperadmin>
+              <BoardsView />
+            </RequireSuperadmin>
+          }
+        />
+        <Route
+          path="admins"
+          element={
+            <RequireSuperadmin>
+              <SuperAdminAdminsView />
+            </RequireSuperadmin>
+          }
+        />
+        <Route path="*" element={<Navigate to="dashboard" replace />} />
+      </Route>
+    </Routes>
   );
 }

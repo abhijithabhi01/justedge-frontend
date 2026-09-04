@@ -19,6 +19,22 @@ export default function BoardChart() {
     },
   }), [sensors, boardCatalog]);
 
+  if (!sensors.length) {
+    return (
+      <div className="card">
+        <div className="card-head">
+          <div>
+            <div className="card-title">Boards by type</div>
+            <div className="card-title-sub">No sensors registered</div>
+          </div>
+        </div>
+        <div style={{ padding: '28px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+          No sensors have been added yet.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="card">
       <div className="card-head"><div><div className="card-title">Boards by type</div><div className="card-title-sub">Fleet mix across board hardware</div></div></div>

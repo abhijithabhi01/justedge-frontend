@@ -34,7 +34,7 @@ export default function AdminForm({ admin, onDone }) {
       showToast(`${name.trim()} added for ${companyName.trim()}`);
       // Password is only ever returned on this one response — show it now
       // so the superadmin can pass it on, rather than closing the dialog.
-      setCreatedCreds({ email: email.trim(), tempPassword: result?.tempPassword });
+      setCreatedCreds({ email: email.trim(), tempPassword: result?.tempPassword, emailSent: result?.emailSent, emailError: result?.emailError });
     }
   }
 
@@ -42,7 +42,14 @@ export default function AdminForm({ admin, onDone }) {
     return (
       <>
         <div className="form-error show" style={{ background: '#e8f5e9', color: '#1b5e20', borderColor: '#a5d6a7' }}>
-          Admin created. Share these sign-in details with them — the password won't be shown again.
+          Admin created. {createdCreds.emailSent
+            ? 'A welcome email with login credentials was sent to this address.'
+            : 'Share these sign-in details with them — the password wont be shown again.'}
+          {!createdCreds.emailSent && createdCreds.emailError ? (
+            <span style={{ display: 'block', marginTop: 6, fontSize: 12, color: '#6b7280' }}>
+              Email not sent ({createdCreds.emailError}). Configure SMTP on the server.
+            </span>
+          ) : null}
         </div>
         <div className="field"><label>Email</label>
           <input className="input" value={createdCreds.email} readOnly />

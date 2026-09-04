@@ -6,7 +6,6 @@ import StatusChart from '../components/charts/StatusChart.jsx';
 import BatteryChart from '../components/charts/BatteryChart.jsx';
 import BoardChart from '../components/charts/BoardChart.jsx';
 import OwnerChart from '../components/charts/OwnerChart.jsx';
-import GpsMap from '../components/GpsMap.jsx';
 import FleetMap from '../components/FleetMap.jsx';
 // ── Small inline helpers ────────────────────────────────────────────────────
 
@@ -174,10 +173,6 @@ export default function DashboardView() {
       Number.isFinite(Number(s.latitude)) &&
       Number.isFinite(Number(s.longitude))
   );
-  // Prefer online GPS, else any with coords
-  const primaryGps =
-    gpsSensors.find((s) => s.status === 'online') || gpsSensors[0] || null;
-
   const adminKpis = [
     {
       label: 'Total sensors',
@@ -257,30 +252,44 @@ export default function DashboardView() {
   ];
 
   const kpis = isSuperadmin ? superadminKpis : adminKpis;
-{isSuperadmin ? (
-  <FleetMap
-    title="All device locations"
-    height={360}
-    markers={sensors.map((s) => ({
-      id: s.id,
-      lat: s.latitude ?? s.lat,
-      lng: s.longitude ?? s.lng,
-      label: s.name || s.id,
-      status: s.status,
-    }))}
-  />
-) : (
-  primaryGps && (
-    <GpsMap
-      latitude={primaryGps.latitude ?? primaryGps.lat}
-      longitude={primaryGps.longitude ?? primaryGps.lng}
-      label={primaryGps.name || primaryGps.awsDeviceId || 'GPS board'}
-      height={320}
-    />
-  )
-)}
+
+  const mapMarkers = gpsSensors.map((s) => ({
+    id: s.id,
+    lat: s.latitude ?? s.lat,
+    lng: s.longitude ?? s.lng,
+    label: s.name || s.id,
+    status: s.status,
+  }));
+
   return (
     <section className="view active">
+      {total === 0 && (
+        <div
+          className="card section-gap"
+          style={{
+            padding: '28px 24px',
+            textAlign: 'center',
+            borderStyle: 'dashed',
+          }}
+        >
+          <div
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontWeight: 700,
+              fontSize: 16,
+              marginBottom: 8,
+              color: 'var(--text-main)',
+            }}
+          >
+            No sensors have been added yet
+          </div>
+          <div style={{ fontSize: 13.5, color: 'var(--text-muted)', lineHeight: 1.55, maxWidth: 420, margin: '0 auto' }}>
+            Register a board under <strong>Sensors → Add sensor</strong>.
+           
+          </div>
+        </div>
+      )}
+
       {/* ── KPI cards ─────────────────────────────────────────────────── */}
       <div className="grid grid-4 section-gap">
         {kpis.map(k => (
@@ -309,19 +318,12 @@ export default function DashboardView() {
         ))}
       </div>
 
-      {/* ── Live GPS map (any admin with a board reporting coords) ───── */}
-      {primaryGps && (
-        <GpsMap
-          latitude={primaryGps.latitude}
-          longitude={primaryGps.longitude}
-          label={
-            gpsSensors.length > 1
-              ? `${primaryGps.name} (+${gpsSensors.length - 1} more GPS)`
-              : primaryGps.name || primaryGps.awsDeviceId || 'GPS board'
-          }
-          height={320}
-        />
-      )}
+      {/* ── Live fleet map: all devices with coordinates + names ───── */}
+      <FleetMap
+        title="Live location"
+        height={360}
+        markers={mapMarkers}
+      />
 
       {/* ── Live AWS sensor readings (admin only, non-superadmin) ──────── */}
       {!isSuperadmin && awsSensors.length > 0 && (

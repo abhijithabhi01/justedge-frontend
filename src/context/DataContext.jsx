@@ -759,7 +759,7 @@ subscriptionPlans: (DEMO_SUBSCRIPTION_PLANS || []).map((p) => ({ ...p })),
     async (user) => {
       const data = await createUserAPI(user, token);
       await loadData();
-      return { user: data.user, tempPassword: data.tempPassword };
+      return { user: data.user, tempPassword: data.tempPassword, emailSent: data.emailSent, emailError: data.emailError };
     },
     [token, loadData]
   );
@@ -890,7 +890,7 @@ subscriptionPlans: (DEMO_SUBSCRIPTION_PLANS || []).map((p) => ({ ...p })),
     async (admin) => {
       const data = await createAdminAPI(admin, token);
       await loadData();
-      return { admin: data.admin, tempPassword: data.tempPassword };
+      return { admin: data.admin, tempPassword: data.tempPassword, emailSent: data.emailSent, emailError: data.emailError };
     },
     [token, loadData]
   );
