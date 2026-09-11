@@ -17,7 +17,7 @@ import UserSensorsView from './views/UserSensorsView.jsx';
 import UserAlertsView from './views/UserAlertsView.jsx';
 import UserAutomationsView from './views/UserAutomationsView.jsx';
 import { ensurePermissions } from './lib/helpers.js';
-import { PageLoader } from './components/Spinner.jsx';
+import { PageLoader, GlobalBusyOverlay } from './components/Spinner.jsx';
 import DemoBanner from './components/DemoBanner.jsx';
 
 function UserLayout({ user, mySensors }) {
@@ -25,7 +25,7 @@ function UserLayout({ user, mySensors }) {
   const navigate = useNavigate();
   const { session } = useAuth();
   const location = useLocation();
-  const { loading } = useData();
+  const { loading, busy } = useData();
 
   const base = session?.isDemo ? '/demo/user' : '/app';
   const parts = location.pathname.split('/').filter(Boolean);
@@ -60,6 +60,7 @@ function UserLayout({ user, mySensors }) {
           )}
         </div>
       </div>
+      <GlobalBusyOverlay active={busy} label="Updating…" />
     </div>
   );
 }
@@ -89,7 +90,13 @@ export default function UserApp({ userId }) {
       role: 'User',
       status: 'active',
       permissions: session.account?.permissions || {
-        monitorSensors: true,
+        monitor: true,
+        addSensor: false,
+        editSensor: false,
+        removeSensor: false,
+        automations: false,
+        alerts: false,
+        manageUsers: false,
         exportData: true,
       },
     };

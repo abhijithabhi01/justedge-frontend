@@ -411,6 +411,32 @@ textarea.input{resize:vertical; min-height:64px;}
 .page-loader-label{font-size:13px;font-weight:600;color:var(--text-faint);letter-spacing:.01em;}
 .page-loader-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.72);backdrop-filter:blur(2px);z-index:20;border-radius:inherit;}
 .content-loading{position:relative;min-height:min(60vh,480px);}
+
+/* Global busy overlay — sits over the whole app, keeps content mounted */
+.global-busy-overlay{
+  position:fixed;
+  inset:0;
+  z-index:10040;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(15,23,42,.18);
+  backdrop-filter:blur(5px);
+  -webkit-backdrop-filter:blur(5px);
+  pointer-events:all;
+}
+.global-busy-card{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  padding:22px 28px;
+  border-radius:16px;
+  background:rgba(255,255,255,.92);
+  box-shadow:0 12px 40px rgba(15,23,42,.14);
+  border:1px solid rgba(15,23,42,.06);
+}
 .toast-stack {
   position: fixed;
   top: 20px;

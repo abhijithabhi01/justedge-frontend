@@ -3,6 +3,7 @@ import React from 'react';
 /**
  * Centered page loader for JustEdge (custom CSS — not Tailwind/shadcn).
  * Use <PageLoader /> for full content-area overlay, or <Spinner /> inline.
+ * Use <GlobalBusyOverlay /> for in-flight API mutations (blurred page, no unmount).
  */
 export function Spinner({ className = '', size = 36, label = 'Loading' }) {
   return (
@@ -38,6 +39,22 @@ export function PageLoader({ label = 'Loading…' }) {
     <div className="page-loader" role="status" aria-live="polite" aria-busy="true">
       <Spinner size={40} label={label} />
       <span className="page-loader-label">{label}</span>
+    </div>
+  );
+}
+
+/**
+ * Fixed full-viewport overlay with blur. Does NOT replace page content.
+ * Show this while mutations / soft refreshes are in flight (`busy` from DataContext).
+ */
+export function GlobalBusyOverlay({ active, label = 'Saving…' }) {
+  if (!active) return null;
+  return (
+    <div className="global-busy-overlay" role="status" aria-live="polite" aria-busy="true">
+      <div className="global-busy-card">
+        <Spinner size={36} label={label} />
+        <span className="page-loader-label">{label}</span>
+      </div>
     </div>
   );
 }

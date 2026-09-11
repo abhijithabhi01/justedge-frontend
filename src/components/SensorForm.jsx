@@ -34,6 +34,7 @@ export default function SensorForm({ sensor, onDone, lockedUserId }) {
   const [lng, setLng] = useState(sensor?.lng || '');
   const [awsDeviceId, setAwsDeviceId] = useState(sensor?.awsDeviceId || '');
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
   const board = boardId ? boardById(boardCatalog, boardId) : null;
   const isLora = board?.conn === 'LoRaWAN';
   // GPS boards get coordinates from AWS telemetry — hide manual location picker
@@ -59,6 +60,7 @@ export default function SensorForm({ sensor, onDone, lockedUserId }) {
   }
 
   async function submit() {
+    if (saving) return; // prevent double-click / double POST
     setError('');
     if (!name.trim()) return fail('Enter a sensor name or location.');
     if (!board) return fail('Select a board type.');
@@ -72,6 +74,11 @@ export default function SensorForm({ sensor, onDone, lockedUserId }) {
     );
     if (macTaken)
       return fail('That MAC address is already registered to another sensor.');
+    const imeiTaken = sensors.some(
+      (s) => String(s.imei) === String(imei) && s.id !== sensor?.id
+    );
+    if (imeiTaken)
+      return fail('A device with that IMEI is already registered.');
     if (!plan) return fail('Select a subscription plan.');
     if (!expiry) return fail('Set a subscription expiry date.');
     if (!editing && awsBoards.length > 0 && !awsDeviceId) {
@@ -93,6 +100,7 @@ export default function SensorForm({ sensor, onDone, lockedUserId }) {
       lng: isGps ? undefined : (lng ?? undefined),
     };
 
+    setSaving(true);
     try {
       if (editing) {
         await updateSensor(sensor.id, payload);
@@ -113,6 +121,8 @@ export default function SensorForm({ sensor, onDone, lockedUserId }) {
         err?.data?.error ||
         'Could not save sensor. Check AWS device and try again.';
       fail(msg);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -292,11 +302,23 @@ export default function SensorForm({ sensor, onDone, lockedUserId }) {
           </select>
         </div>
       )}
-      <button type="button" className="btn btn-amber btn-block" onClick={submit}>
+      <button
+        type="button"
+        className="btn btn-amber btn-block"
+        onClick={submit}
+        disabled={saving}
+        aria-busy={saving}
+      >
         <svg>
           <use href={editing ? '#i-check' : '#i-plus'} />
         </svg>
-        {editing ? 'Save changes' : 'Add sensor'}
+        {saving
+          ? editing
+            ? 'Saving…'
+            : 'Adding…'
+          : editing
+            ? 'Save changes'
+            : 'Add sensor'}
       </button>
     </>
   );

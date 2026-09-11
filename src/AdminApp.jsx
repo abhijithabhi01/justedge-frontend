@@ -22,7 +22,7 @@ import FleetHealthView from './views/FleetHealthView.jsx';
 import SuperAdminAdminsView from './views/SuperAdminAdminsView.jsx';
 import { useAuth } from './context/AuthContext.jsx';
 import { useData } from './context/DataContext.jsx';
-import { PageLoader } from './components/Spinner.jsx';
+import { PageLoader, GlobalBusyOverlay } from './components/Spinner.jsx';
 import DemoBanner from './components/DemoBanner.jsx';
 
 const SUPERADMIN_ONLY_VIEWS = new Set([
@@ -39,7 +39,7 @@ function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isSuperadmin, session } = useAuth();
-  const { loading } = useData();
+  const { loading, busy } = useData();
 
   const base = session?.isDemo ? '/demo/admin' : '/app';
   const parts = location.pathname.split('/').filter(Boolean);
@@ -62,6 +62,10 @@ function AdminLayout() {
     }
   }
 
+  // Only blank the content on the very first load (no data yet).
+  // Mutations use `busy` + GlobalBusyOverlay so the page stays mounted.
+  const showInitialLoader = loading;
+
   return (
     <div className="app">
       <Sidebar
@@ -74,13 +78,14 @@ function AdminLayout() {
         <DemoBanner />
         <Topbar view={view} onMenuClick={() => setMobileNavOpen(true)} />
         <div className="content">
-          {loading ? (
+          {showInitialLoader ? (
             <PageLoader label="Loading fleet data…" />
           ) : (
             <Outlet context={{ goTo }} />
           )}
         </div>
       </div>
+      <GlobalBusyOverlay active={busy} label="Updating…" />
     </div>
   );
 }

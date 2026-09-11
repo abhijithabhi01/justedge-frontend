@@ -33,6 +33,8 @@ import {
   deleteAutomationAPI,
   getBillingPlansAPI,
   getBillingSubscriptionsAPI,
+  createBillingPlanAPI,
+  updateBillingPlanAPI,
   getAdminsAPI,
   createAdminAPI,
   updateAdminAPI,
@@ -281,6 +283,16 @@ export function DataProvider({ children }) {
   const [loading, setLoading] =
     useState(false);
 
+  // In-flight mutation counter — drives a global overlay without unmounting the page.
+  const [busyCount, setBusyCount] = useState(0);
+  const busy = busyCount > 0;
+
+  const beginBusy = useCallback(() => {
+    setBusyCount((c) => c + 1);
+  }, []);
+  const endBusy = useCallback(() => {
+    setBusyCount((c) => Math.max(0, c - 1));
+  }, []);
 
   const [error, setError] =
     useState(null);
@@ -290,10 +302,18 @@ export function DataProvider({ children }) {
     session?.token;
 
 
+  /**
+   * @param {{ soft?: boolean }} [opts]
+   * soft=true  → refresh data without flipping the full-page `loading` flag
+   *              (used after mutations so the UI stays mounted).
+   * soft=false → initial / login load; shows the centered content loader.
+   */
   const loadData = useCallback(
-    async () => {
+    async (opts = {}) => {
+      const soft = !!opts.soft;
+
       if (session?.isDemo) {
-        setLoading(true);
+        if (!soft) setLoading(true);
         setError(null);
         try {
           setState({
@@ -304,12 +324,12 @@ export function DataProvider({ children }) {
             automations: DEMO_AUTOMATIONS,
             adminAccounts: session.type === 'admin' ? [DEMO_ADMIN] : [],
             activityLogs: DEMO_ACTIVITY,
-boardCatalog: (DEMO_BOARD_CATALOG || []).map((b) => ({ ...b })),
-subscriptionPlans: (DEMO_SUBSCRIPTION_PLANS || []).map((p) => ({ ...p })),
+            boardCatalog: (DEMO_BOARD_CATALOG || []).map((b) => ({ ...b })),
+            subscriptionPlans: (DEMO_SUBSCRIPTION_PLANS || []).map((p) => ({ ...p })),
             accessControl: { roles: ['Admin', 'User'], matrix: {} },
           });
         } finally {
-          setLoading(false);
+          if (!soft) setLoading(false);
         }
         return;
       }
@@ -318,38 +338,23 @@ subscriptionPlans: (DEMO_SUBSCRIPTION_PLANS || []).map((p) => ({ ...p })),
         return;
       }
 
-
-      setLoading(true);
-      setError(null);
-
-
-      try {
-
-        if (session.type === 'admin') {
-
-          await loadAdminData();
-
-        } else {
-
-          await loadUserData();
-
-        }
-
-      } catch (err) {
-
-        console.error(
-          '[DataContext]',
-          err
-        );
-
-        setError(err.message);
-
-      } finally {
-
-        setLoading(false);
-
+      if (!soft) {
+        setLoading(true);
+        setError(null);
       }
 
+      try {
+        if (session.type === 'admin') {
+          await loadAdminData();
+        } else {
+          await loadUserData();
+        }
+      } catch (err) {
+        console.error('[DataContext]', err);
+        setError(err.message);
+      } finally {
+        if (!soft) setLoading(false);
+      }
     },
     [
       token,
@@ -359,6 +364,21 @@ subscriptionPlans: (DEMO_SUBSCRIPTION_PLANS || []).map((p) => ({ ...p })),
       session?.userId,
       session?.isDemo,
     ]
+  );
+
+  /** Soft refresh + global busy overlay. Prefer this after any mutating API call. */
+  const withBusyRefresh = useCallback(
+    async (fn) => {
+      beginBusy();
+      try {
+        const result = await fn();
+        await loadData({ soft: true });
+        return result;
+      } finally {
+        endBusy();
+      }
+    },
+    [beginBusy, endBusy, loadData]
   );
 
 
@@ -720,35 +740,35 @@ subscriptionPlans: (DEMO_SUBSCRIPTION_PLANS || []).map((p) => ({ ...p })),
 
   const addSensor = useCallback(
     async (sensor) => {
-      const data = await createDeviceAPI(sensor, token);
-      await loadData();
-      return data.device;
+      return withBusyRefresh(async () => {
+        const data = await createDeviceAPI(sensor, token);
+        return data.device;
+      });
     },
-    [token, loadData]
+    [token, withBusyRefresh]
   );
 
   const updateSensor = useCallback(
     async (id, patch) => {
-      await updateDeviceAPI(id, patch, token);
-      await loadData();
+      await withBusyRefresh(() => updateDeviceAPI(id, patch, token));
     },
-    [token, loadData]
+    [token, withBusyRefresh]
   );
 
   const removeSensor = useCallback(
     async (id) => {
-      await deleteDeviceAPI(id, token);
-      await loadData();
+      await withBusyRefresh(() => deleteDeviceAPI(id, token));
     },
-    [token, loadData]
+    [token, withBusyRefresh]
   );
 
   const reassignSensor = useCallback(
     async (sensorId, userId) => {
-      await assignDeviceAPI(sensorId, { assignedUserId: userId }, token);
-      await loadData();
+      await withBusyRefresh(() =>
+        assignDeviceAPI(sensorId, { assignedUserId: userId }, token)
+      );
     },
-    [token, loadData]
+    [token, withBusyRefresh]
   );
 
   // ─────────────────────────────────────────────
@@ -757,46 +777,50 @@ subscriptionPlans: (DEMO_SUBSCRIPTION_PLANS || []).map((p) => ({ ...p })),
 
   const addUser = useCallback(
     async (user) => {
-      const data = await createUserAPI(user, token);
-      await loadData();
-      return { user: data.user, tempPassword: data.tempPassword, emailSent: data.emailSent, emailError: data.emailError };
+      return withBusyRefresh(async () => {
+        const data = await createUserAPI(user, token);
+        return {
+          user: data.user,
+          tempPassword: data.tempPassword,
+          emailSent: data.emailSent,
+          emailError: data.emailError,
+        };
+      });
     },
-    [token, loadData]
+    [token, withBusyRefresh]
   );
 
   const updateUser = useCallback(
     async (id, patch) => {
-      if (
-        patch.name !== undefined ||
-        patch.email !== undefined ||
-        patch.phone !== undefined
-      ) {
-        await updateUserAPI(
-          id,
-          {
-            name: patch.name,
-            email: patch.email,
-            phone: patch.phone,
-          },
-          token
-        );
-      }
-
-      if (patch.status !== undefined) {
-        await updateUserStatusAPI(id, { status: patch.status }, token);
-      }
-
-      await loadData();
+      await withBusyRefresh(async () => {
+        if (
+          patch.name !== undefined ||
+          patch.email !== undefined ||
+          patch.phone !== undefined
+        ) {
+          await updateUserAPI(
+            id,
+            {
+              name: patch.name,
+              email: patch.email,
+              phone: patch.phone,
+            },
+            token
+          );
+        }
+        if (patch.status !== undefined) {
+          await updateUserStatusAPI(id, { status: patch.status }, token);
+        }
+      });
     },
-    [token, loadData]
+    [token, withBusyRefresh]
   );
 
   const removeUser = useCallback(
     async (id) => {
-      await deleteUserAPI(id, token);
-      await loadData();
+      await withBusyRefresh(() => deleteUserAPI(id, token));
     },
-    [token, loadData]
+    [token, withBusyRefresh]
   );
 
   const toggleUserStatus = useCallback(
@@ -805,10 +829,18 @@ subscriptionPlans: (DEMO_SUBSCRIPTION_PLANS || []).map((p) => ({ ...p })),
       if (!user) return;
 
       const nextStatus = user.status === 'active' ? 'suspended' : 'active';
-      await updateUserStatusAPI(id, { status: nextStatus }, token);
-      await loadData();
+      // Optimistic UI update so the card flips immediately
+      setState((prev) => ({
+        ...prev,
+        users: prev.users.map((u) =>
+          String(u.id) === String(id) ? { ...u, status: nextStatus } : u
+        ),
+      }));
+      await withBusyRefresh(() =>
+        updateUserStatusAPI(id, { status: nextStatus }, token)
+      );
     },
-    [token, state.users, loadData]
+    [token, state.users, withBusyRefresh]
   );
 
   const togglePermission = useCallback(
@@ -816,14 +848,24 @@ subscriptionPlans: (DEMO_SUBSCRIPTION_PLANS || []).map((p) => ({ ...p })),
       const user = state.users.find((u) => String(u.id) === String(userId));
       if (!user) return;
 
-      const permissions = {
-        ...(user.permissions || {}),
-        [key]: !user.permissions?.[key],
-      };
-      await updateUserPermissionsAPI(userId, { permissions }, token);
-      await loadData();
+      const nextValue = !user.permissions?.[key];
+      // Optimistic UI — switch flips instantly, no full-page blank
+      setState((prev) => ({
+        ...prev,
+        users: prev.users.map((u) =>
+          String(u.id) === String(userId)
+            ? {
+                ...u,
+                permissions: { ...(u.permissions || {}), [key]: nextValue },
+              }
+            : u
+        ),
+      }));
+      await withBusyRefresh(() =>
+        updateUserPermissionsAPI(userId, { key, value: nextValue }, token)
+      );
     },
-    [token, state.users, loadData]
+    [token, state.users, withBusyRefresh]
   );
 
   // ─────────────────────────────────────────────
@@ -832,26 +874,23 @@ subscriptionPlans: (DEMO_SUBSCRIPTION_PLANS || []).map((p) => ({ ...p })),
 
   const resolveAlert = useCallback(
     async (id) => {
-      await resolveAlertAPI(id, token);
-      await loadData();
+      await withBusyRefresh(() => resolveAlertAPI(id, token));
     },
-    [token, loadData]
+    [token, withBusyRefresh]
   );
 
   const dismissAlert = useCallback(
     async (id) => {
-      await deleteAlertAPI(id, token);
-      await loadData();
+      await withBusyRefresh(() => deleteAlertAPI(id, token));
     },
-    [token, loadData]
+    [token, withBusyRefresh]
   );
 
   const snoozeAlert = useCallback(
     async (id) => {
-      await snoozeAlertAPI(id, { hours: 24 }, token);
-      await loadData();
+      await withBusyRefresh(() => snoozeAlertAPI(id, { hours: 24 }, token));
     },
-    [token, loadData]
+    [token, withBusyRefresh]
   );
 
   // ─────────────────────────────────────────────
@@ -860,26 +899,23 @@ subscriptionPlans: (DEMO_SUBSCRIPTION_PLANS || []).map((p) => ({ ...p })),
 
   const addAutomation = useCallback(
     async (automation) => {
-      await createAutomationAPI(automation, token);
-      await loadData();
+      await withBusyRefresh(() => createAutomationAPI(automation, token));
     },
-    [token, loadData]
+    [token, withBusyRefresh]
   );
 
   const toggleAutomation = useCallback(
     async (id) => {
-      await toggleAutomationAPI(id, token);
-      await loadData();
+      await withBusyRefresh(() => toggleAutomationAPI(id, token));
     },
-    [token, loadData]
+    [token, withBusyRefresh]
   );
 
   const removeAutomation = useCallback(
     async (id) => {
-      await deleteAutomationAPI(id, token);
-      await loadData();
+      await withBusyRefresh(() => deleteAutomationAPI(id, token));
     },
-    [token, loadData]
+    [token, withBusyRefresh]
   );
 
   // ─────────────────────────────────────────────
@@ -888,27 +924,31 @@ subscriptionPlans: (DEMO_SUBSCRIPTION_PLANS || []).map((p) => ({ ...p })),
 
   const addAdmin = useCallback(
     async (admin) => {
-      const data = await createAdminAPI(admin, token);
-      await loadData();
-      return { admin: data.admin, tempPassword: data.tempPassword, emailSent: data.emailSent, emailError: data.emailError };
+      return withBusyRefresh(async () => {
+        const data = await createAdminAPI(admin, token);
+        return {
+          admin: data.admin,
+          tempPassword: data.tempPassword,
+          emailSent: data.emailSent,
+          emailError: data.emailError,
+        };
+      });
     },
-    [token, loadData]
+    [token, withBusyRefresh]
   );
 
   const updateAdmin = useCallback(
     async (id, patch) => {
-      await updateAdminAPI(id, patch, token);
-      await loadData();
+      await withBusyRefresh(() => updateAdminAPI(id, patch, token));
     },
-    [token, loadData]
+    [token, withBusyRefresh]
   );
 
   const removeAdmin = useCallback(
     async (id) => {
-      await deleteAdminAPI(id, token);
-      await loadData();
+      await withBusyRefresh(() => deleteAdminAPI(id, token));
     },
-    [token, loadData]
+    [token, withBusyRefresh]
   );
 
   const toggleAdminStatus = useCallback(
@@ -920,10 +960,15 @@ subscriptionPlans: (DEMO_SUBSCRIPTION_PLANS || []).map((p) => ({ ...p })),
 
       const status =
         admin.status === 'suspended' ? 'active' : 'suspended';
-      await updateAdminStatusAPI(id, { status }, token);
-      await loadData();
+      setState((prev) => ({
+        ...prev,
+        adminAccounts: prev.adminAccounts.map((a) =>
+          String(a.id) === String(id) ? { ...a, status } : a
+        ),
+      }));
+      await withBusyRefresh(() => updateAdminStatusAPI(id, { status }, token));
     },
-    [token, state.adminAccounts, loadData]
+    [token, state.adminAccounts, withBusyRefresh]
   );
 
   const toggleAdminPermission = useCallback(
@@ -933,14 +978,23 @@ subscriptionPlans: (DEMO_SUBSCRIPTION_PLANS || []).map((p) => ({ ...p })),
       );
       if (!admin) return;
 
-      const permissions = {
-        ...(admin.permissions || {}),
-        [key]: !admin.permissions?.[key],
-      };
-      await updateAdminPermissionsAPI(adminId, { permissions }, token);
-      await loadData();
+      const nextValue = !admin.permissions?.[key];
+      setState((prev) => ({
+        ...prev,
+        adminAccounts: prev.adminAccounts.map((a) =>
+          String(a.id) === String(adminId)
+            ? {
+                ...a,
+                permissions: { ...(a.permissions || {}), [key]: nextValue },
+              }
+            : a
+        ),
+      }));
+      await withBusyRefresh(() =>
+        updateAdminPermissionsAPI(adminId, { key, value: nextValue }, token)
+      );
     },
-    [token, state.adminAccounts, loadData]
+    [token, state.adminAccounts, withBusyRefresh]
   );
 
   // ─────────────────────────────────────────────
@@ -949,43 +1003,37 @@ subscriptionPlans: (DEMO_SUBSCRIPTION_PLANS || []).map((p) => ({ ...p })),
 
   const resolveSecurityFlag = useCallback(
     async (id) => {
-      await resolveOversightFlagAPI(id, token);
-      await loadData();
+      await withBusyRefresh(() => resolveOversightFlagAPI(id, token));
     },
-    [token, loadData]
+    [token, withBusyRefresh]
   );
 
   const reopenSecurityFlag = useCallback(
     async (id) => {
-      await reopenOversightFlagAPI(id, token);
-      await loadData();
+      await withBusyRefresh(() => reopenOversightFlagAPI(id, token));
     },
-    [token, loadData]
+    [token, withBusyRefresh]
   );
 
   const addBoard = useCallback(
     async (board) => {
-      await createBoardCatalogAPI(board, token);
-      await loadData();
+      await withBusyRefresh(() => createBoardCatalogAPI(board, token));
     },
-    [token, loadData]
+    [token, withBusyRefresh]
   );
 
   const updateBoard = useCallback(
     async (id, board) => {
-      await updateBoardCatalogAPI(id, board, token);
-      await loadData();
+      await withBusyRefresh(() => updateBoardCatalogAPI(id, board, token));
     },
-    [token, loadData]
+    [token, withBusyRefresh]
   );
-
 
   const removeBoard = useCallback(
     async (id) => {
-      await deleteBoardCatalogAPI(id, token);
-      await loadData();
+      await withBusyRefresh(() => deleteBoardCatalogAPI(id, token));
     },
-    [token, loadData]
+    [token, withBusyRefresh]
   );
 
   const addBillingPlan = useCallback(
@@ -997,11 +1045,10 @@ subscriptionPlans: (DEMO_SUBSCRIPTION_PLANS || []).map((p) => ({ ...p })),
         }));
         return plan;
       }
-      await createBillingPlanAPI(plan, token);
-      await loadData();
+      await withBusyRefresh(() => createBillingPlanAPI(plan, token));
       return plan;
     },
-    [token, loadData, session?.isDemo]
+    [token, withBusyRefresh, session?.isDemo]
   );
 
   const updateBillingPlan = useCallback(
@@ -1015,10 +1062,9 @@ subscriptionPlans: (DEMO_SUBSCRIPTION_PLANS || []).map((p) => ({ ...p })),
         }));
         return;
       }
-      await updateBillingPlanAPI(id, patch, token);
-      await loadData();
+      await withBusyRefresh(() => updateBillingPlanAPI(id, patch, token));
     },
-    [token, loadData, session?.isDemo]
+    [token, withBusyRefresh, session?.isDemo]
   );
 
   const resetDemo = useCallback(() => {
@@ -1041,6 +1087,7 @@ subscriptionPlans: (DEMO_SUBSCRIPTION_PLANS || []).map((p) => ({ ...p })),
   const value = {
     ...state,
     loading,
+    busy,
     error,
     refresh: loadData,
     resetDemo,
