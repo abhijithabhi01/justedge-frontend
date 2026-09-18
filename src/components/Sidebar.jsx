@@ -8,6 +8,8 @@ const NAV = {
     { id: 'sensors', label: 'Sensors', icon: 'i-cpu' },
     { id: 'users', label: 'Users', icon: 'i-users' },
     { id: 'assign', label: 'Assign Sensors', icon: 'i-link' },
+    { id: 'alerts', label: 'Alerts', icon: 'i-wifi' },
+    { id: 'automations', label: 'Automations', icon: 'i-zap' },
     { id: 'boards', label: 'Board Catalog', icon: 'i-cpu' },
   ],
   superAdmin: [

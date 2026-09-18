@@ -2,7 +2,7 @@ import React from 'react';
 import FleetChart from '../components/charts/FleetChart.jsx';
 import StatusChart from '../components/charts/StatusChart.jsx';
 import BatteryChart from '../components/charts/BatteryChart.jsx';
-import GpsMap from '../components/GpsMap.jsx';
+import FleetMap from '../components/FleetMap.jsx';
 
 export default function UserOverviewView({ user, mySensors, myAlerts, onNavigate }) {
   const online = mySensors.filter(s => s.status === 'online').length;
@@ -17,14 +17,20 @@ export default function UserOverviewView({ user, mySensors, myAlerts, onNavigate
   ).length;
   const openAlerts = myAlerts.filter(a => !a.resolved).length;
 
-  const gpsSensor =
-    mySensors.find((s) => {
-      const la = s.latitude ?? s.lat;
-      const ln = s.longitude ?? s.lng;
-      return la != null && ln != null && Number.isFinite(Number(la)) && Number.isFinite(Number(ln));
-    }) ||
-    mySensors.find((s) => String(s.id).includes('GPS') || s.boardType?.includes('GPS')) ||
-    null;
+  const mapMarkers = mySensors
+    .map((s) => {
+      const lat = Number(s.latitude ?? s.lat);
+      const lng = Number(s.longitude ?? s.lng);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+      return {
+        id: s.id,
+        lat,
+        lng,
+        label: s.name,
+        status: s.status,
+      };
+    })
+    .filter(Boolean);
 
   const kpis = [
     { label: 'My sensors', value: mySensors.length, icon: 'i-thermo', color: 'var(--purple)', soft: 'var(--purple-soft)' },
@@ -55,12 +61,11 @@ export default function UserOverviewView({ user, mySensors, myAlerts, onNavigate
         </div>
       )}
 
-      {gpsSensor && (
-        <GpsMap
-          latitude={gpsSensor.latitude ?? gpsSensor.lat}
-          longitude={gpsSensor.longitude ?? gpsSensor.lng}
-          label={gpsSensor.name || 'Your GPS board'}
+      {mapMarkers.length > 0 && (
+        <FleetMap
+          title="Live location"
           height={300}
+          markers={mapMarkers}
         />
       )}
 

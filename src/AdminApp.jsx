@@ -20,6 +20,8 @@ import SubscriptionPlansView from './views/SubscriptionPlansView.jsx';
 import RevenueBusinessView from './views/RevenueBusinessView.jsx';
 import FleetHealthView from './views/FleetHealthView.jsx';
 import SuperAdminAdminsView from './views/SuperAdminAdminsView.jsx';
+import AdminAlertsView from './views/AdminAlertsView.jsx';
+import UserAutomationsView from './views/UserAutomationsView.jsx';
 import { useAuth } from './context/AuthContext.jsx';
 import { useData } from './context/DataContext.jsx';
 import { PageLoader, GlobalBusyOverlay } from './components/Spinner.jsx';
@@ -90,6 +92,12 @@ function AdminLayout() {
   );
 }
 
+
+function AdminAutomationsRoute() {
+  const { automations } = useData();
+  return <UserAutomationsView isAdmin myAutomations={automations || []} />;
+}
+
 function SensorsRoute() {
   const { goTo } = useOutletContext();
   return <SensorsView onNavigate={goTo} />;
@@ -126,6 +134,8 @@ export default function AdminApp() {
         <Route path="dashboard" element={<DashboardView />} />
         <Route path="sensors" element={<SensorsRoute />} />
         <Route path="users" element={<UsersView />} />
+        <Route path="alerts" element={<AdminAlertsView />} />
+        <Route path="automations" element={<AdminAutomationsRoute />} />
         <Route
           path="assign"
           element={

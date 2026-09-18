@@ -48,22 +48,20 @@ function normalizePoints(markers) {
 }
 
 /**
- * Multi-marker map for fleet overview.
- * markers: [{ id, lat, lng, label, status }]
- *
- * Zoom/pan are preserved across live GPS updates. fitBounds only runs:
- *  - on first data
- *  - when the set of device ids changes
- *  - when the user clicks "Fit all"
+ * Multi-marker fleet map.
+ * - Tracks all devices (auto fitBounds) until the user pans/zooms
+ * - When markers drift off-screen while still tracking, view re-adjusts
+ * - After user interaction, view stays put until "Fit all"
  */
 export default function FleetMap({ markers = [], height = 360, title = 'All device locations' }) {
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
   const layerRef = useRef(null);
-  const markersById = useRef(new Map()); // id -> L.Marker
+  const markersById = useRef(new Map());
   const fittedIdsKey = useRef('');
   const userMoved = useRef(false);
   const pointsRef = useRef([]);
+  const fittingProgrammatic = useRef(false);
 
   const points = normalizePoints(markers);
   pointsRef.current = points;
@@ -75,19 +73,46 @@ export default function FleetMap({ markers = [], height = 360, title = 'All devi
       .join('|');
   }
 
+  function anyOutside(map, pts) {
+    if (!map || !pts.length) return false;
+    try {
+      const b = map.getBounds();
+      if (!b || typeof b.isValid !== 'function' || !b.isValid()) return true;
+      // Require a little padding so markers near the edge still trigger re-fit
+      const padded = b.pad(-0.08);
+      return pts.some((p) => !padded.contains([p.lat, p.lng]));
+    } catch {
+      return true;
+    }
+  }
+
   function fitAll(map, pts) {
     if (!map || !pts.length) return;
+    fittingProgrammatic.current = true;
     const bounds = pts.map((p) => [p.lat, p.lng]);
-    if (bounds.length === 1) map.setView(bounds[0], 14);
-    else map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
-    userMoved.current = false;
+    try {
+      if (bounds.length === 1) {
+        map.setView(bounds[0], 13, { animate: true });
+      } else {
+        map.fitBounds(bounds, {
+          padding: [48, 48],
+          maxZoom: 12,
+          animate: true,
+        });
+      }
+    } finally {
+      // Leaflet fires zoom/move during fitBounds — ignore those as user intent
+      setTimeout(() => {
+        fittingProgrammatic.current = false;
+        userMoved.current = false;
+      }, 120);
+    }
     fittedIdsKey.current = deviceIdsKey(pts);
   }
 
-  // Create map once
   useEffect(() => {
     let cancelled = false;
-    let onMove = null;
+    let onUserGesture = null;
 
     async function init() {
       try {
@@ -96,7 +121,6 @@ export default function FleetMap({ markers = [], height = 360, title = 'All devi
 
         const map = L.map(mapRef.current, {
           zoomControl: true,
-          // Keep scroll zoom; user can zoom freely
           scrollWheelZoom: true,
         });
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -107,18 +131,17 @@ export default function FleetMap({ markers = [], height = 360, title = 'All devi
         mapInstance.current = map;
         layerRef.current = L.layerGroup().addTo(map);
 
-        // Any pan/zoom by the user → stop auto fitBounds on live ticks
-        onMove = () => {
+        onUserGesture = () => {
+          if (fittingProgrammatic.current) return;
           userMoved.current = true;
         };
-        map.on('dragstart', onMove);
-        map.on('zoomstart', onMove);
+        map.on('dragstart', onUserGesture);
+        map.on('zoomstart', onUserGesture);
 
-        // Initial paint if we already have points
         if (pointsRef.current.length) {
           updateMarkers(L, map, pointsRef.current, true);
         } else {
-          map.setView([11.5, 77.0], 7); // South India overview
+          map.setView([12.5, 78.5], 6);
         }
         setTimeout(() => map.invalidateSize(), 80);
       } catch (err) {
@@ -131,9 +154,9 @@ export default function FleetMap({ markers = [], height = 360, title = 'All devi
     return () => {
       cancelled = true;
       if (mapInstance.current) {
-        if (onMove) {
-          mapInstance.current.off('dragstart', onMove);
-          mapInstance.current.off('zoomstart', onMove);
+        if (onUserGesture) {
+          mapInstance.current.off('dragstart', onUserGesture);
+          mapInstance.current.off('zoomstart', onUserGesture);
         }
         mapInstance.current.remove();
         mapInstance.current = null;
@@ -149,7 +172,6 @@ export default function FleetMap({ markers = [], height = 360, title = 'All devi
     if (!layer || !map) return;
 
     const nextIds = new Set(pts.map((p) => String(p.id || p.label)));
-    // Remove markers that disappeared
     for (const [id, marker] of markersById.current.entries()) {
       if (!nextIds.has(id)) {
         layer.removeLayer(marker);
@@ -209,16 +231,14 @@ export default function FleetMap({ markers = [], height = 360, title = 'All devi
     });
 
     const idsKey = deviceIdsKey(pts);
-    const shouldFit =
-      forceFit ||
-      (!userMoved.current && (fittedIdsKey.current === '' || fittedIdsKey.current !== idsKey));
+    const setChanged = fittedIdsKey.current === '' || fittedIdsKey.current !== idsKey;
+    const drifted = !userMoved.current && anyOutside(map, pts);
 
-    if (shouldFit && pts.length) {
-      fitAll(map, pts);
+    if (forceFit || setChanged || drifted) {
+      if (pts.length) fitAll(map, pts);
     }
   }
 
-  // Update markers when live points change — do NOT reset zoom if user zoomed/panned
   useEffect(() => {
     const map = mapInstance.current;
     if (!map || !window.L) return;
@@ -241,7 +261,7 @@ export default function FleetMap({ markers = [], height = 360, title = 'All devi
           <div className="card-title">{title}</div>
           <div className="card-title-sub">
             {points.length
-              ? `${points.length} device${points.length !== 1 ? 's' : ''} with GPS coordinates · zoom & pan freely`
+              ? `${points.length} device${points.length !== 1 ? 's' : ''} with GPS · auto-follows until you pan/zoom`
               : 'No sensors with location data yet'}
           </div>
         </div>
@@ -250,10 +270,11 @@ export default function FleetMap({ markers = [], height = 360, title = 'All devi
             type="button"
             className="btn btn-ghost btn-sm"
             onClick={() => {
+              userMoved.current = false;
               const map = mapInstance.current;
               if (map) fitAll(map, pointsRef.current);
             }}
-            title="Reset view to show all devices"
+            title="Show all devices and resume auto-follow"
           >
             Fit all
           </button>
@@ -276,12 +297,10 @@ export default function FleetMap({ markers = [], height = 360, title = 'All devi
           <div style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: 6 }}>
             No sensor locations to show
           </div>
-          Add a sensor with GPS coordinates (or link an AWS GPS board) to see markers with device
-          names on this map.
+          Add a sensor with GPS coordinates (or link an AWS GPS board) to see markers on this map.
         </div>
       )}
 
-      {/* Always keep the map DOM node so Leaflet is not destroyed on empty→data flips */}
       <div
         ref={mapRef}
         style={{

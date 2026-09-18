@@ -3,7 +3,7 @@ import { useData } from '../context/DataContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { useConfirm } from '../context/ConfirmContext.jsx';
 
-const TONE_ICON = { good: 'i-check', warn: 'i-battery', bad: 'i-wifi' };
+const TONE_ICON = { info: 'i-check', warn: 'i-battery', critical: 'i-wifi' };
 
 export default function UserAlertsView({ user, myAlerts }) {
   const { resolveAlert, dismissAlert, snoozeAlert } = useData();

@@ -29,6 +29,7 @@ import {
   deleteAlertAPI,
   getAutomationsAPI,
   createAutomationAPI,
+  updateAutomationAPI,
   toggleAutomationAPI,
   deleteAutomationAPI,
   getBillingPlansAPI,
@@ -904,6 +905,13 @@ export function DataProvider({ children }) {
     [token, withBusyRefresh]
   );
 
+  const updateAutomation = useCallback(
+    async (id, patch) => {
+      await withBusyRefresh(() => updateAutomationAPI(id, patch, token));
+    },
+    [token, withBusyRefresh]
+  );
+
   const toggleAutomation = useCallback(
     async (id) => {
       await withBusyRefresh(() => toggleAutomationAPI(id, token));
@@ -1108,6 +1116,7 @@ export function DataProvider({ children }) {
     snoozeAlert,
 
     addAutomation,
+    updateAutomation,
     toggleAutomation,
     removeAutomation,
 

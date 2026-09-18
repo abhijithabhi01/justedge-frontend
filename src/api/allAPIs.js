@@ -114,6 +114,9 @@ export const getAutomationsAPI = (token) =>
 export const createAutomationAPI = (body, token) =>
   apiRequest('/api/automations', { method: 'POST', body, token });
 
+export const updateAutomationAPI = (id, body, token) =>
+  apiRequest(`/api/automations/${id}`, { method: 'PATCH', body, token });
+
 export const toggleAutomationAPI = (id, token) =>
   apiRequest(`/api/automations/${id}/toggle`, { method: 'PATCH', token });
 
