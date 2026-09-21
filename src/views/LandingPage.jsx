@@ -5,6 +5,7 @@ import BoardsCoverflow from '../components/BoardsCoverflow.jsx';
 import NavTabs from '../components/NavTabs.jsx';
 import FAQAccordion from '../components/FAQAccordion.jsx';
 import Footer from '../components/Footer.jsx';
+import ScrollToTop from '../components/ScrollToTop.jsx';
 
 const FEATURES = [
   {
@@ -199,7 +200,7 @@ export default function LandingPage({ onEnter, onDemo }) {
           <a href="#features" onClick={(e) => goTo(e, 'features')}><svg><use href="#i-chart" /></svg>Features</a>
           <a href="#how" onClick={(e) => goTo(e, 'how')}><svg><use href="#i-zap" /></svg>How it works</a>
           <a href="#faqs" onClick={(e) => goTo(e, 'faqs')}><svg><use href="#i-quote" /></svg>FAQs</a>
-          <a href="#plans" onClick={(e) => goTo(e, 'plans')}><svg><use href="#i-receipt" /></svg>Plans</a>
+          <a href="#footer" onClick={(e) => goTo(e, 'footer')}><svg><use href="#i-users" /></svg>Contact</a>
           <button className="btn btn-amber btn-block" onClick={() => { setMobileNavOpen(false); onEnter(); }}>
             <svg><use href="#i-check" /></svg>Sign in
           </button>
@@ -377,6 +378,7 @@ export default function LandingPage({ onEnter, onDemo }) {
       </section>
 
       <Footer onNavigate={scrollToSection} />
+      <ScrollToTop />
     </div>
   );
 }

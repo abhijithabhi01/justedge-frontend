@@ -46,10 +46,24 @@ function AppRoute() {
 
 function DemoAdminRoute() {
   const { session, loginDemo } = useAuth();
+  const booted = React.useRef(false);
 
   useEffect(() => {
+    // Enter demo once. Do not re-login after Exit demo (session cleared).
+    if (booted.current) return;
+    if (session?.isDemo && session.type === 'admin') {
+      booted.current = true;
+      return;
+    }
+    if (session && !session.isDemo) return;
+    booted.current = true;
     loginDemo('admin');
-  }, [loginDemo]);
+  }, [session, loginDemo]);
+
+  // User left demo — send them home instead of spinning forever
+  if (booted.current && !session) {
+    return <Navigate to="/" replace />;
+  }
 
   if (!session?.isDemo || session.type !== 'admin') {
     return (
@@ -63,10 +77,22 @@ function DemoAdminRoute() {
 
 function DemoUserRoute() {
   const { session, loginDemo } = useAuth();
+  const booted = React.useRef(false);
 
   useEffect(() => {
+    if (booted.current) return;
+    if (session?.isDemo && session.type === 'user') {
+      booted.current = true;
+      return;
+    }
+    if (session && !session.isDemo) return;
+    booted.current = true;
     loginDemo('user');
-  }, [loginDemo]);
+  }, [session, loginDemo]);
+
+  if (booted.current && !session) {
+    return <Navigate to="/" replace />;
+  }
 
   if (!session?.isDemo || session.type !== 'user') {
     return (

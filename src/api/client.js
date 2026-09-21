@@ -72,6 +72,7 @@ export async function apiRequest(path, options = {}) {
     const error = new Error(message);
     error.status = status;
     error.data = data;
+    error.suspended = status === 403 && /suspended/i.test(String(message));
     throw error;
   }
 }

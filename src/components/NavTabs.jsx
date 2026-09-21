@@ -1,12 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 
 const TABS = [
-  { label: 'Home', id: 'top' },
   { label: 'Hardware', id: 'boards' },
   { label: 'Features', id: 'features' },
   { label: 'How it works', id: 'how' },
   { label: 'FAQs', id: 'faqs' },
-  { label: 'Plans', id: 'plans' },
+  { label: 'Contact', id: 'footer' },
 ];
 
 export default function NavTabs({ onNavigate }) {
@@ -27,7 +26,9 @@ export default function NavTabs({ onNavigate }) {
     setCursor({ left: elRect.left - listRect.left, width: elRect.width, opacity: 1 });
   };
 
-  useEffect(() => { measure(activeIndex); }, [activeIndex]);
+  useEffect(() => {
+    measure(activeIndex);
+  }, [activeIndex]);
 
   useEffect(() => {
     const onResize = () => measure(activeIndex);
@@ -36,21 +37,21 @@ export default function NavTabs({ onNavigate }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeIndex]);
 
-  // Highlights whichever section is currently in view, so the pill tracks
-  // scroll position too — not just clicks — same way the reference tracks
-  // whichever tab is hovered/selected.
   useEffect(() => {
-    const sections = TABS.map(t => document.getElementById(t.id)).filter(Boolean);
+    const sections = TABS.map((t) => document.getElementById(t.id)).filter(Boolean);
     if (!sections.length || typeof IntersectionObserver === 'undefined') return undefined;
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          const idx = TABS.findIndex(t => t.id === entry.target.id);
-          if (idx !== -1) setSelected(idx);
-        }
-      });
-    }, { rootMargin: '-35% 0px -55% 0px', threshold: 0 });
-    sections.forEach(s => observer.observe(s));
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const idx = TABS.findIndex((t) => t.id === entry.target.id);
+            if (idx !== -1) setSelected(idx);
+          }
+        });
+      },
+      { rootMargin: '-35% 0px -55% 0px', threshold: 0 }
+    );
+    sections.forEach((s) => observer.observe(s));
     return () => observer.disconnect();
   }, []);
 
@@ -65,11 +66,17 @@ export default function NavTabs({ onNavigate }) {
       ref={listRef}
       onMouseLeave={() => setHovered(null)}
     >
-      <li className="nav-tabs-cursor" style={{ left: cursor.left, width: cursor.width, opacity: cursor.opacity }} aria-hidden="true" />
+      <li
+        className="nav-tabs-cursor"
+        style={{ left: cursor.left, width: cursor.width, opacity: cursor.opacity }}
+        aria-hidden="true"
+      />
       {TABS.map((tab, i) => (
         <li
           key={tab.id}
-          ref={(el) => { tabRefs.current[i] = el; }}
+          ref={(el) => {
+            tabRefs.current[i] = el;
+          }}
           className={`nav-tabs-item${i === activeIndex ? ' active' : ''}`}
           onMouseEnter={() => setHovered(i)}
           onClick={() => handleClick(i, tab.id)}

@@ -3,25 +3,29 @@
    (user / admin / superadmin dashboards). Load this first. */
 
 :root{
-  --ink:#0e1520; --bg:#f0f2f8; --surface:#ffffff; --surface-2:#f6f7fb;
-  --text-main:#12161d; --text-muted:#636d7d; --text-faint:#9aa3b2;
-  --border:#e4e7ee; --border-soft:#edeff5;
-  --amber:#dd7c3f; --amber-soft:rgba(221,124,63,.12);
-  --teal:#2b9490; --teal-soft:rgba(43,148,144,.12);
+  /* Susima Smaart Solutions — Cloud Services palette */
+  --ink:#0a1628; --bg:#eef3fb; --surface:#ffffff; --surface-2:#f3f7fc;
+  --text-main:#0a1628; --text-muted:#5a6a80; --text-faint:#8b9bb0;
+  --border:#d8e2f0; --border-soft:#e8eef7;
+  /* Primary CTA (legacy name --amber kept so existing classes keep working) */
+  --amber:#0b6ef6; --amber-soft:rgba(11,110,246,.12);
+  --amber-deep:#0747b8;
+  --cyan:#00b4ff; --cyan-soft:rgba(0,180,255,.12);
+  --teal:#0d9488; --teal-soft:rgba(13,148,136,.12);
   --danger:#e2493f; --danger-soft:rgba(226,73,63,.11);
-  --good:#22a05e; --good-soft:rgba(34,160,94,.11);
-  --warn:#c98a1f; --warn-soft:rgba(201,138,31,.12);
-  --purple:#7c5cff; --purple-soft:rgba(124,92,255,.12);
-  --blue:#2f7bf6; --blue-soft:rgba(47,123,246,.12);
+  --good:#12b76a; --good-soft:rgba(18,183,106,.12);
+  --warn:#f79009; --warn-soft:rgba(247,144,9,.12);
+  --purple:#6d5efc; --purple-soft:rgba(109,94,252,.12);
+  --blue:#0b6ef6; --blue-soft:rgba(11,110,246,.12);
   --radius:18px; --radius-sm:12px;
-  --shadow:0 1px 2px rgba(15,23,32,.04), 0 14px 32px -16px rgba(15,23,32,.12);
-  --shadow-lg:0 4px 10px rgba(15,23,32,.05), 0 24px 48px -20px rgba(15,23,32,.18);
+  --shadow:0 1px 2px rgba(10,22,40,.04), 0 14px 32px -16px rgba(11,110,246,.14);
+  --shadow-lg:0 4px 10px rgba(10,22,40,.05), 0 24px 48px -20px rgba(11,110,246,.18);
   --font-ui:'Manrope',-apple-system,sans-serif; --font-display:'Space Grotesk','Manrope',-apple-system,sans-serif; --font-mono:'JetBrains Mono',ui-monospace,monospace;
-  --sidebar-w:252px; --sidebar-text:#8b96ab;
+  --sidebar-w:252px; --sidebar-text:#7a8ba3;
 }
 *{box-sizing:border-box; margin:0; padding:0;}
 html{scroll-behavior:smooth;}
-body{font-family:var(--font-ui); background:var(--bg); background-image:radial-gradient(circle at 12% 0%, rgba(124,92,255,.05), transparent 40%), radial-gradient(circle at 90% 8%, rgba(221,124,63,.06), transparent 38%); background-attachment:fixed; color:var(--text-main); font-size:14.5px; -webkit-font-smoothing:antialiased;}
+body{font-family:var(--font-ui); background:var(--bg); background-image:radial-gradient(circle at 12% 0%, rgba(11,110,246,.07), transparent 42%), radial-gradient(circle at 92% 6%, rgba(0,180,255,.08), transparent 40%), radial-gradient(circle at 50% 100%, rgba(109,94,252,.04), transparent 45%); background-attachment:fixed; color:var(--text-main); font-size:14.5px; -webkit-font-smoothing:antialiased;}
 svg[style*="display:none"]{position:absolute;}
 .num{font-family:var(--font-mono);}
 button{font-family:inherit; cursor:pointer;}
@@ -37,7 +41,7 @@ a{color:inherit; text-decoration:none;}
 .btn svg{width:13px; height:13px;}
 .btn-ghost{background:var(--surface); color:var(--text-main); border:1px solid var(--border);}
 .btn-ghost:hover{background:var(--surface-2);}
-.btn-amber{background:linear-gradient(155deg, var(--amber), #b34e1f);}
+.btn-amber{background:linear-gradient(155deg, var(--amber), var(--amber-deep));}
 .btn-danger{background:linear-gradient(155deg, var(--danger), #a8281f);}
 .btn-block{width:100%; justify-content:center;}
 .btn:disabled{opacity:.5; cursor:not-allowed;}

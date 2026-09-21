@@ -88,38 +88,97 @@ export function AuthProvider({ children }) {
 
     let cancelled = false;
 
+    function applyMe(data) {
+      const account = data.admin || data.user;
+      const type = data.admin ? 'admin' : 'user';
+      if (!account) {
+        setSession(null);
+        setAuthToken(null);
+        return;
+      }
+      if (account.status === 'suspended') {
+        setSession(null);
+        setAuthToken(null);
+        try {
+          sessionStorage.setItem('justedge-auth-message', 'Your account has been suspended. Please contact your administrator.');
+        } catch { /* ignore */ }
+        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+          window.location.assign('/');
+        }
+        return;
+      }
+      setSession((current) => {
+        if (!current || current.token !== session.token) return current;
+        return {
+          ...current,
+          type,
+          name: account.name,
+          role: account.role,
+          companyName: account.companyName || current.companyName,
+          account,
+          ...(type === 'admin'
+            ? { adminId: account.id, userId: undefined }
+            : { userId: account.id, adminId: undefined }),
+        };
+      });
+    }
+
     getMeAPI(session.token)
       .then((data) => {
         if (cancelled) return;
-        const account = data.admin || data.user;
-        const type = data.admin ? 'admin' : 'user';
-        if (!account) {
-          setSession(null);
-          return;
-        }
-        setSession((current) => {
-          if (!current || current.token !== session.token) return current;
-          return {
-            ...current,
-            type,
-            name: account.name,
-            role: account.role,
-            companyName: account.companyName || current.companyName,
-            account,
-            ...(type === 'admin'
-              ? { adminId: account.id, userId: undefined }
-              : { userId: account.id, adminId: undefined }),
-          };
-        });
+        applyMe(data);
       })
       .catch((err) => {
-        if (!cancelled && (err.status === 401 || err.status === 403)) {
+        if (cancelled) return;
+        const msg = String(err?.message || '').toLowerCase();
+        if (
+          err.status === 401 ||
+          err.status === 403 ||
+          msg.includes('suspended')
+        ) {
           setSession(null);
+          setAuthToken(null);
+          if (msg.includes('suspended')) {
+            try {
+              sessionStorage.setItem(
+                'justedge-auth-message',
+                'Your account has been suspended. Please contact your administrator.'
+              );
+            } catch { /* ignore */ }
+            if (typeof window !== 'undefined') window.location.assign('/');
+          }
         }
       });
 
+    // Re-check status periodically while signed in
+    const poll = setInterval(() => {
+      if (cancelled) return;
+      getMeAPI(session.token)
+        .then((data) => {
+          if (!cancelled) applyMe(data);
+        })
+        .catch((err) => {
+          if (cancelled) return;
+          const msg = String(err?.message || '').toLowerCase();
+          if (err.status === 401 || err.status === 403 || msg.includes('suspended')) {
+            setSession(null);
+            setAuthToken(null);
+            if (msg.includes('suspended') && typeof window !== 'undefined') {
+              try {
+                sessionStorage.setItem(
+                  'justedge-auth-message',
+                  'Your account has been suspended. Please contact your administrator.'
+                );
+              } catch { /* ignore */ }
+              window.location.assign('/');
+            }
+          }
+        });
+    }, 45000);
+
     return () => {
       cancelled = true;
+      clearInterval(poll);
     };
   }, [session?.token, session?.isDemo]);
 
