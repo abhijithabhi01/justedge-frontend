@@ -63,9 +63,38 @@ export default function SensorsView({ onNavigate }) {
   return (
     <section className="view active">
       <div className="filter-row">
-        <div className="filter-search">
+        <div className="filter-search" style={{ position: 'relative', flex: 1, minWidth: 0 }}>
           <svg><use href="#i-search" /></svg>
-          <input type="text" placeholder="Search by ID, name, IMEI, or owner…" value={query} onChange={e => setQuery(e.target.value)} />
+          <input
+            type="text"
+            placeholder="Search by ID, name, IMEI, or owner…"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            style={{ paddingRight: query ? 36 : undefined }}
+          />
+          {query ? (
+            <button
+              type="button"
+              title="Clear search"
+              onClick={() => setQuery('')}
+              style={{
+                position: 'absolute',
+                right: 10,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                border: 'none',
+                background: 'transparent',
+                cursor: 'pointer',
+                padding: 4,
+                display: 'flex',
+                alignItems: 'center',
+                color: 'var(--text-muted)',
+                borderRadius: 6,
+              }}
+            >
+              <svg style={{ width: 16, height: 16 }}><use href="#i-x" /></svg>
+            </button>
+          ) : null}
         </div>
         <select className="plain-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           <option value="">All status</option>

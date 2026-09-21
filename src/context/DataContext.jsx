@@ -1,3 +1,4 @@
+import { setToastDefer } from './ToastContext.jsx';
 import React, {
   createContext,
   useContext,
@@ -27,6 +28,7 @@ import {
   resolveAlertAPI,
   snoozeAlertAPI,
   deleteAlertAPI,
+  clearAllAlertsAPI,
   getAutomationsAPI,
   createAutomationAPI,
   updateAutomationAPI,
@@ -289,10 +291,18 @@ export function DataProvider({ children }) {
   const busy = busyCount > 0;
 
   const beginBusy = useCallback(() => {
-    setBusyCount((c) => c + 1);
+    setBusyCount((c) => {
+      const next = c + 1;
+      if (next === 1) setToastDefer(true);
+      return next;
+    });
   }, []);
   const endBusy = useCallback(() => {
-    setBusyCount((c) => Math.max(0, c - 1));
+    setBusyCount((c) => {
+      const next = Math.max(0, c - 1);
+      if (next === 0) setToastDefer(false);
+      return next;
+    });
   }, []);
 
   const [error, setError] =
@@ -406,37 +416,37 @@ export function DataProvider({ children }) {
 
 
   async function loadAdminData() {
-
-    const [
-      boardRes,
-      awsBoardRes,
-      userRes,
-      deviceRes,
-      liveRes,
-      alertRes,
-      automationRes,
-      planRes,
-      subscriptionRes,
-    ] = await Promise.all([
-
+    // allSettled: one slow/failing call (e.g. DynamoDB board scan) must not
+    // blank the whole Sensors page.
+    const settled = await Promise.allSettled([
       getBoardCatalogAPI(),
-
       getIotBoardsAPI(token),
-
       getUsersAPI(token),
-
       getDevicesAPI(token),
-
       getDevicesLiveAPI(token),
-
       getAlertsAPI(token),
-
       getAutomationsAPI(token),
-
       getBillingPlansAPI(token),
-
       getBillingSubscriptionsAPI(token),
     ]);
+
+    const val = (i, fallback) =>
+      settled[i].status === 'fulfilled' ? settled[i].value : fallback;
+    settled.forEach((r, i) => {
+      if (r.status === 'rejected') {
+        console.warn('[DataContext] loadAdminData partial fail #', i, r.reason?.message || r.reason);
+      }
+    });
+
+    const boardRes = val(0, { boards: [] });
+    const awsBoardRes = val(1, { boards: [] });
+    const userRes = val(2, { users: [] });
+    const deviceRes = val(3, { devices: [] });
+    const liveRes = val(4, { devices: [] });
+    const alertRes = val(5, { alerts: [] });
+    const automationRes = val(6, { automations: [] });
+    const planRes = val(7, { plans: [] });
+    const subscriptionRes = val(8, { subscriptions: [] });
 
 
     const liveMap =
@@ -469,44 +479,30 @@ export function DataProvider({ children }) {
     let securityFlags = [];
     let accessControl = EMPTY_STATE.accessControl;
 
+    // Company Admins get peer admin roster; Superadmin also gets logs/oversight.
+    try {
+      const adminsRes = await getAdminsAPI(token);
+      adminAccounts = (adminsRes.admins || []).map(normalizeAdmin);
+    } catch (err) {
+      console.warn('[DataContext] getAdminsAPI:', err?.message || err);
+    }
 
-    if (
-      session.role === 'Superadmin'
-    ) {
-
-      const [
-        adminsRes,
-        logsRes,
-        flagsRes,
-        accessRes,
-      ] = await Promise.all([
-
-        getAdminsAPI(token),
-
-        getActivityLogsAPI(token),
-
-        getOversightFlagsAPI(token),
-
-        getAccessControlRolesAPI(token),
-      ]);
-
-
-      adminAccounts =
-        (adminsRes.admins || [])
-          .map(normalizeAdmin);
-
-
-      activityLogs =
-        logsRes.logs || [];
-
-
-      securityFlags =
-        flagsRes.flags || [];
-
-      accessControl = {
-        roles: accessRes.roles || [],
-        matrix: accessRes.matrix || {},
-      };
+    if (session.role === 'Superadmin') {
+      try {
+        const [logsRes, flagsRes, accessRes] = await Promise.all([
+          getActivityLogsAPI(token),
+          getOversightFlagsAPI(token),
+          getAccessControlRolesAPI(token),
+        ]);
+        activityLogs = logsRes.logs || [];
+        securityFlags = flagsRes.flags || [];
+        accessControl = {
+          roles: accessRes.roles || [],
+          matrix: accessRes.matrix || {},
+        };
+      } catch (err) {
+        console.warn('[DataContext] superadmin extras:', err?.message || err);
+      }
     }
 
 
@@ -550,28 +546,27 @@ export function DataProvider({ children }) {
 
 
   async function loadUserData() {
-
-    const [
-      meRes,
-      deviceRes,
-      liveRes,
-      alertRes,
-      automationRes,
-      planRes,
-    ] = await Promise.all([
-
+    const settled = await Promise.allSettled([
       getMeAPI(token),
-
       getMyDevicesAPI(token),
-
       getMyDevicesLiveAPI(token),
-
       getAlertsAPI(token),
-
       getAutomationsAPI(token),
-
       getBillingPlansAPI(token),
     ]);
+    const val = (i, fallback) =>
+      settled[i].status === 'fulfilled' ? settled[i].value : fallback;
+    settled.forEach((r, i) => {
+      if (r.status === 'rejected') {
+        console.warn('[DataContext] loadUserData partial fail #', i, r.reason?.message || r.reason);
+      }
+    });
+    const meRes = val(0, { user: null });
+    const deviceRes = val(1, { devices: [] });
+    const liveRes = val(2, { devices: [] });
+    const alertRes = val(3, { alerts: [] });
+    const automationRes = val(4, { automations: [] });
+    const planRes = val(5, { plans: [] });
 
 
     const liveMap =
@@ -887,6 +882,16 @@ export function DataProvider({ children }) {
     [token, withBusyRefresh]
   );
 
+  const clearAllAlerts = useCallback(
+    async () => {
+      return withBusyRefresh(async () => {
+        const data = await clearAllAlertsAPI(token);
+        return data;
+      });
+    },
+    [token, withBusyRefresh]
+  );
+
   const snoozeAlert = useCallback(
     async (id) => {
       await withBusyRefresh(() => snoozeAlertAPI(id, { hours: 24 }, token));
@@ -1113,6 +1118,7 @@ export function DataProvider({ children }) {
 
     resolveAlert,
     dismissAlert,
+    clearAllAlerts,
     snoozeAlert,
 
     addAutomation,

@@ -6,7 +6,7 @@ import { useConfirm } from '../context/ConfirmContext.jsx';
 const TONE_ICON = { info: 'i-check', warn: 'i-battery', critical: 'i-wifi' };
 
 export default function AdminAlertsView() {
-  const { alerts, sensors, resolveAlert, dismissAlert, snoozeAlert } = useData();
+  const { alerts, sensors, resolveAlert, dismissAlert, snoozeAlert, clearAllAlerts } = useData();
   const showToast = useToast();
   const confirm = useConfirm();
 
@@ -62,6 +62,24 @@ export default function AdminAlertsView() {
     }
   }
 
+  async function handleClearAll() {
+    const count = (alerts || []).length;
+    if (!count) return;
+    const ok = await confirm({
+      title: 'Clear all alerts?',
+      message: `This will permanently remove all ${count} alert${count !== 1 ? 's' : ''}. This cannot be undone.`,
+      confirmLabel: 'Clear all',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      const data = await clearAllAlerts();
+      showToast(`Cleared ${data?.deleted ?? count} alert${(data?.deleted ?? count) !== 1 ? 's' : ''}`);
+    } catch (err) {
+      showToast(err?.message || 'Failed to clear alerts', 'error');
+    }
+  }
+
   const list = alerts || [];
 
   return (
@@ -73,6 +91,11 @@ export default function AdminAlertsView() {
             {list.length} alert{list.length !== 1 ? 's' : ''} from automation rules
           </div>
         </div>
+        {list.length > 0 && (
+          <button type="button" className="btn btn-ghost" onClick={handleClearAll}>
+            Clear all
+          </button>
+        )}
       </div>
 
       {list.length ? (

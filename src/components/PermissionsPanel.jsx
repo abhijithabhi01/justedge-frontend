@@ -21,11 +21,13 @@ function StatusPill({ status }) {
   return <span className="pill">{status || '—'}</span>;
 }
 
-export default function PermissionsPanel({ userId }) {
+export default function PermissionsPanel({ userId, user: userProp }) {
   const { users, sensors, togglePermission } = useData();
   const showToast = useToast();
   const [permsOpen, setPermsOpen] = useState(true);
-  const user = users.find((u) => String(u.id) === String(userId));
+  const user =
+    userProp ||
+    users.find((u) => String(u.id) === String(userId));
 
   const sensorCount = useMemo(() => {
     if (!user) return 0;

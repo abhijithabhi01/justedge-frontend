@@ -103,6 +103,9 @@ export const resolveAlertAPI = (id, token) =>
 export const snoozeAlertAPI = (id, body, token) =>
   apiRequest(`/api/alerts/${id}/snooze`, { method: 'PATCH', body, token });
 
+export const clearAllAlertsAPI = (token) =>
+  apiRequest('/api/alerts/clear-all', { method: 'DELETE', token });
+
 export const deleteAlertAPI = (id, token) =>
   apiRequest(`/api/alerts/${id}`, { method: 'DELETE', token });
 

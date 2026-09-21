@@ -36,18 +36,56 @@ const SUPERADMIN_ONLY_VIEWS = new Set([
 ]);
 const REMOVED_SUPERADMIN_VIEWS = new Set(['activity', 'access', 'oversight']);
 
+function useAppBase() {
+  const { session } = useAuth();
+  return session?.isDemo ? '/demo/admin' : '/app';
+}
+
+/** First segment after /app or /demo/admin — never trust deep nested junk paths */
+function useActiveView(base) {
+  const location = useLocation();
+  const rest = location.pathname.startsWith(base)
+    ? location.pathname.slice(base.length)
+    : location.pathname;
+  const seg = rest.split('/').filter(Boolean)[0];
+  return seg || 'dashboard';
+}
+
 function AdminLayout() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const navigate = useNavigate();
-  const location = useLocation();
-  const { isSuperadmin, session } = useAuth();
+  const { isSuperadmin } = useAuth();
   const { loading, busy } = useData();
-
-  const base = session?.isDemo ? '/demo/admin' : '/app';
-  const parts = location.pathname.split('/').filter(Boolean);
-  const view = (session?.isDemo ? parts[2] : parts[1]) || 'dashboard';
+  const base = useAppBase();
+  const view = useActiveView(base);
 
   useEffect(() => {
+    // Collapse corrupted nested URLs like /app/assign/assign/dashboard/...
+    const rest = locationPathAfterBase(window.location.pathname, base);
+    const segments = rest.split('/').filter(Boolean);
+    if (segments.length > 1) {
+      const first = segments[0];
+      const known = new Set([
+        'dashboard',
+        'sensors',
+        'users',
+        'alerts',
+        'automations',
+        'assign',
+        'revenue',
+        'fleet-health',
+        'plans',
+        'boards',
+        'admins',
+      ]);
+      if (known.has(first)) {
+        navigate(`${base}/${first}${window.location.search || ''}`, { replace: true });
+        return;
+      }
+      navigate(`${base}/dashboard`, { replace: true });
+      return;
+    }
+
     if (
       (SUPERADMIN_ONLY_VIEWS.has(view) && !isSuperadmin) ||
       REMOVED_SUPERADMIN_VIEWS.has(view)
@@ -58,14 +96,12 @@ function AdminLayout() {
 
   function goTo(nextView, preset) {
     if (nextView === 'assign' && preset) {
-      navigate(`${base}/assign?preset=${preset}`);
+      navigate(`${base}/assign?preset=${encodeURIComponent(preset)}`);
     } else {
       navigate(`${base}/${nextView}`);
     }
   }
 
-  // Only blank the content on the very first load (no data yet).
-  // Mutations use `busy` + GlobalBusyOverlay so the page stays mounted.
   const showInitialLoader = loading;
 
   return (
@@ -83,7 +119,7 @@ function AdminLayout() {
           {showInitialLoader ? (
             <PageLoader label="Loading fleet data…" />
           ) : (
-            <Outlet context={{ goTo }} />
+            <Outlet context={{ goTo, base }} />
           )}
         </div>
       </div>
@@ -92,6 +128,10 @@ function AdminLayout() {
   );
 }
 
+function locationPathAfterBase(pathname, base) {
+  if (pathname.startsWith(base)) return pathname.slice(base.length);
+  return pathname;
+}
 
 function AdminAutomationsRoute() {
   const { automations } = useData();
@@ -105,32 +145,40 @@ function SensorsRoute() {
 
 function AssignRoute() {
   const navigate = useNavigate();
+  const base = useAppBase();
   const [searchParams] = useSearchParams();
   return (
     <AssignView
       presetQuery={searchParams.get('preset')}
-      onConsumePreset={() => navigate('assign', { replace: true })}
+      onConsumePreset={() => navigate(`${base}/assign`, { replace: true })}
     />
   );
 }
 
 function RequireSuperadmin({ children }) {
+  const base = useAppBase();
   const { isSuperadmin } = useAuth();
-  if (!isSuperadmin) return <Navigate to="dashboard" replace />;
+  if (!isSuperadmin) return <Navigate to={`${base}/dashboard`} replace />;
   return children;
 }
 
 function RequireAdminOperations({ children }) {
+  const base = useAppBase();
   const { isSuperadmin } = useAuth();
-  if (isSuperadmin) return <Navigate to="dashboard" replace />;
+  if (isSuperadmin) return <Navigate to={`${base}/dashboard`} replace />;
   return children;
+}
+
+function AbsoluteRedirect({ to }) {
+  const base = useAppBase();
+  return <Navigate to={`${base}/${to}`} replace />;
 }
 
 export default function AdminApp() {
   return (
     <Routes>
       <Route element={<AdminLayout />}>
-        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route index element={<AbsoluteRedirect to="dashboard" />} />
         <Route path="dashboard" element={<DashboardView />} />
         <Route path="sensors" element={<SensorsRoute />} />
         <Route path="users" element={<UsersView />} />
@@ -177,7 +225,8 @@ export default function AdminApp() {
             </RequireSuperadmin>
           }
         />
-        <Route path="*" element={<Navigate to="dashboard" replace />} />
+        {/* Catch nested garbage paths and send to dashboard once */}
+        <Route path="*" element={<AbsoluteRedirect to="dashboard" />} />
       </Route>
     </Routes>
   );

@@ -21,8 +21,12 @@ export default function UserCard({ user, selected, onSelect, onEdit, sensorCount
       danger: suspending,
     });
     if (!ok) return;
-    toggleUserStatus(user.id);
-    showToast(`${user.name} ${suspending ? 'suspended' : 'reactivated'}`);
+    try {
+      await toggleUserStatus(user.id);
+      showToast(`${user.name} ${suspending ? 'suspended' : 'reactivated'}`);
+    } catch (err) {
+      showToast(err?.message || 'Could not update status', 'error');
+    }
   }
 
   async function handleRemove(e) {
@@ -33,8 +37,12 @@ export default function UserCard({ user, selected, onSelect, onEdit, sensorCount
       confirmLabel: 'Remove',
     });
     if (!ok) return;
-    removeUser(user.id);
-    showToast(`${user.name} removed`);
+    try {
+      await removeUser(user.id);
+      showToast(`${user.name} removed`);
+    } catch (err) {
+      showToast(err?.message || 'Could not remove user', 'error');
+    }
   }
 
   return (

@@ -104,6 +104,7 @@ export function AuthProvider({ children }) {
             type,
             name: account.name,
             role: account.role,
+            companyName: account.companyName || current.companyName,
             account,
             ...(type === 'admin'
               ? { adminId: account.id, userId: undefined }
@@ -136,6 +137,7 @@ export function AuthProvider({ children }) {
         adminId: data.admin.id,
         name: data.admin.name,
         role: data.admin.role,
+        companyName: data.admin.companyName || '',
         account: data.admin,
       };
     } else if (data.user) {

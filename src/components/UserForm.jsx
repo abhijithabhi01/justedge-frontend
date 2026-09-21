@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useData } from '../context/DataContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
+import { PERMISSION_DEFS, ADMIN_PERMISSION_DEFS } from '../lib/helpers.js';
+import { updateUserPermissionsAPI } from '../api/allAPIs.js';
 
 /** Keep digits only, max 10 (Indian mobile style). */
 function sanitizePhone(value) {
@@ -80,24 +83,89 @@ function PrettySelect({ value, onChange, children, id }) {
   );
 }
 
+function defaultUserPermState() {
+  const o = {};
+  PERMISSION_DEFS.forEach((p) => {
+    o[p.key] = p.locked ? true : p.key === 'exportData';
+  });
+  return o;
+}
+
+function defaultAdminPermState() {
+  // Same privileges as a company Admin: users, sensors, fleet, logs, billing.
+  // manageAdmins / manageAccessControl stay Superadmin-only.
+  return {
+    manageAdmins: false,
+    manageAccessControl: false,
+    viewActivityLogs: true,
+    systemOversight: true,
+    manageUsers: true,
+    manageSensors: true,
+    billingAccess: true,
+    exportData: true,
+  };
+}
+
 export default function UserForm({ user, onDone }) {
-  const { addUser, updateUser } = useData();
+  const { addUser, updateUser, addAdmin } = useData();
+  const { session, isSuperadmin } = useAuth();
+  const token = session?.token;
+  // Superadmin or Master Admin (manageAdmins) may invite admin accounts
+  const canCreateAdmin =
+    isSuperadmin ||
+    !!session?.account?.permissions?.manageAdmins ||
+    !!session?.permissions?.manageAdmins;
+
   const showToast = useToast();
   const editing = !!user;
 
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [phone, setPhone] = useState(sanitizePhone(user?.phone || ''));
-  const [role, setRole] = useState(user?.role || 'Viewer');
-  const [status, setStatus] = useState(user?.status || 'invited');
+  // Create: User | Admin. Edit existing platform users stays as User account.
+  const [accountType, setAccountType] = useState('User');
+  // Superadmin → Master Admin company workspace fields
+  const [companyNameInput, setCompanyNameInput] = useState('');
+  const [locationCity, setLocationCity] = useState('');
+  const [locationState, setLocationState] = useState('');
+  const [locationCountry, setLocationCountry] = useState('');
+  const [companyAddress, setCompanyAddress] = useState('');
+  const [status, setStatus] = useState(user?.status || 'active');
+  const [userPerms, setUserPerms] = useState(() => ({
+    ...defaultUserPermState(),
+    ...(user?.permissions || {}),
+    monitor: true,
+  }));
+  const [adminPerms, setAdminPerms] = useState(() => defaultAdminPermState());
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [createdCreds, setCreatedCreds] = useState(null);
 
+  const permDefs =
+    accountType === 'Admin'
+      ? isSuperadmin
+        ? ADMIN_PERMISSION_DEFS
+        : ADMIN_PERMISSION_DEFS.filter(
+            (p) => p.key !== 'manageAdmins' && p.key !== 'manageAccessControl'
+          )
+      : PERMISSION_DEFS;
+  const permState = accountType === 'Admin' ? adminPerms : userPerms;
+  const setPermState = accountType === 'Admin' ? setAdminPerms : setUserPerms;
+
+  const grantedCount = useMemo(
+    () => permDefs.filter((p) => permState[p.key]).length,
+    [permDefs, permState]
+  );
+
+  function togglePerm(key, locked) {
+    if (locked) return;
+    setPermState((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
+
   async function submit() {
     setError('');
     if (!name.trim()) {
-      const msg = "Enter the user's full name.";
+      const msg = "Enter the person's full name.";
       setError(msg);
       showToast(msg, 'error');
       return;
@@ -122,34 +190,91 @@ export default function UserForm({ user, onDone }) {
           name: name.trim(),
           email: email.trim(),
           phone: phone || '',
-          role,
           status,
         });
+        // Apply each permission that differs from the loaded user
+        for (const p of PERMISSION_DEFS) {
+          if (p.locked) continue;
+          const desired = !!userPerms[p.key];
+          const current = !!user?.permissions?.[p.key];
+          if (desired !== current) {
+            await updateUserPermissionsAPI(
+              user.id,
+              { key: p.key, value: desired },
+              token
+            );
+          }
+        }
         showToast(`${name.trim()} updated`, 'success');
         onDone();
+      } else if (accountType === 'Admin') {
+        if (!canCreateAdmin) {
+          setError('Only a Master Admin can create admin accounts.');
+          setBusy(false);
+          return;
+        }
+        if (isSuperadmin && !companyNameInput.trim()) {
+          setError('Company / organisation name is required for a Master Admin.');
+          showToast('Enter the company name', 'error');
+          setBusy(false);
+          return;
+        }
+        const result = await addAdmin({
+          name: name.trim(),
+          email: email.trim(),
+          phone: phone || '',
+          role: 'Admin',
+          companyName: isSuperadmin
+            ? companyNameInput.trim()
+            : (session?.companyName || session?.account?.companyName || ''),
+          locationCity: isSuperadmin ? locationCity.trim() : undefined,
+          locationState: isSuperadmin ? locationState.trim() : undefined,
+          locationCountry: isSuperadmin ? locationCountry.trim() : undefined,
+          companyAddress: isSuperadmin ? companyAddress.trim() : undefined,
+          permissions: {
+            manageAdmins: false,
+            manageAccessControl: false,
+            viewActivityLogs: true,
+            systemOversight: true,
+            manageUsers: true,
+            manageSensors: true,
+            billingAccess: true,
+            exportData: true,
+            ...adminPerms,
+            ...(isSuperadmin ? {} : { manageAdmins: false, manageAccessControl: false }),
+          },
+        });
+        showToast(`${name.trim()} admin created`, 'success');
+        setCreatedCreds({
+          name: name.trim(),
+          email: email.trim(),
+          tempPassword: result?.tempPassword || '',
+          role: 'Admin',
+          phone: phone || '—',
+          kind: 'admin',
+        });
       } else {
         const result = await addUser({
           name: name.trim(),
           email: email.trim(),
           phone: phone || '',
-          role,
-          status,
+          permissions: { ...userPerms, monitor: true },
         });
         showToast(`${name.trim()} created`, 'success');
         setCreatedCreds({
           name: name.trim(),
           email: email.trim(),
           tempPassword: result?.tempPassword || '',
-          role,
-          status,
+          role: 'User',
           phone: phone || '—',
+          kind: 'user',
         });
       }
     } catch (err) {
       const msg =
         err?.message ||
         err?.data?.error ||
-        'Could not save user. Check the email and try again.';
+        'Could not save. Check the email and try again.';
       setError(msg);
       showToast(msg, 'error');
     } finally {
@@ -160,8 +285,8 @@ export default function UserForm({ user, onDone }) {
   if (createdCreds) {
     return (
       <div>
-        <div className="form-error show" style={{ marginBottom: 12 }}>
-          User created. Share these sign-in details — the password will not be shown again.
+        <div className="form-error show" style={{ marginBottom: 12, borderColor: 'var(--good)', color: 'var(--good)' }}>
+          Account created. Share these sign-in details — the password will not be shown again.
         </div>
         <div className="field">
           <label>Name</label>
@@ -176,18 +301,14 @@ export default function UserForm({ user, onDone }) {
           <input className="input" value={createdCreds.phone} readOnly />
         </div>
         <div className="field">
-          <label>Role · Status</label>
-          <input
-            className="input"
-            value={`${createdCreds.role} · ${createdCreds.status}`}
-            readOnly
-          />
+          <label>Account type</label>
+          <input className="input" value={createdCreds.role} readOnly />
         </div>
         <div className="field">
           <label>Temporary password</label>
           <input
             className="input"
-            value={createdCreds.tempPassword || '(not returned)'}
+            value={createdCreds.tempPassword || '(sent by email if SMTP is configured)'}
             readOnly
           />
         </div>
@@ -243,26 +364,153 @@ export default function UserForm({ user, onDone }) {
         />
       </div>
 
-      <div className="field">
-        <label>
-          Role <span className="req">*</span>
-        </label>
-        <PrettySelect value={role} onChange={(e) => setRole(e.target.value)}>
-          <option value="Viewer">Viewer</option>
-          <option value="Operator">Operator</option>
-          <option value="Manager">Manager</option>
-        </PrettySelect>
-      </div>
+      {!editing && (
+        <div className="field">
+          <label>
+            Account type <span className="req">*</span>
+          </label>
+          <PrettySelect
+            value={canCreateAdmin ? accountType : 'User'}
+            onChange={(e) => setAccountType(e.target.value)}
+          >
+            <option value="User">User</option>
+            {canCreateAdmin ? <option value="Admin">Admin</option> : null}
+          </PrettySelect>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>
+            {!canCreateAdmin
+              ? 'Creates an end-user login (My Sensors, alerts, automations).'
+              : accountType === 'Admin'
+                ? isSuperadmin
+                  ? 'Creates a Master Admin for a company (can create & delete peer admins in that org).'
+                  : 'Creates a peer Admin in your company (full ops except create/delete admins).'
+                : 'Creates an end-user login (My Sensors, alerts, automations).'}
+          </div>
+        </div>
+      )}
 
-      <div className="field">
-        <label>
-          Status <span className="req">*</span>
-        </label>
-        <PrettySelect value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="invited">Invited</option>
-          <option value="active">Active</option>
-          <option value="suspended">Suspended</option>
-        </PrettySelect>
+      {!editing && accountType === 'Admin' && isSuperadmin && (
+        <>
+          <div className="field">
+            <label>
+              Company / organisation <span className="req">*</span>
+            </label>
+            <input
+              className="input"
+              value={companyNameInput}
+              onChange={(e) => setCompanyNameInput(e.target.value)}
+              placeholder="Susima Smaart Solutions"
+            />
+          </div>
+          <div className="field">
+            <label>Company address</label>
+            <input
+              className="input"
+              value={companyAddress}
+              onChange={(e) => setCompanyAddress(e.target.value)}
+              placeholder="Street, area"
+            />
+          </div>
+          <div className="field">
+            <label>City</label>
+            <input
+              className="input"
+              value={locationCity}
+              onChange={(e) => setLocationCity(e.target.value)}
+              placeholder="Bengaluru"
+            />
+          </div>
+          <div className="field">
+            <label>State / region</label>
+            <input
+              className="input"
+              value={locationState}
+              onChange={(e) => setLocationState(e.target.value)}
+              placeholder="Karnataka"
+            />
+          </div>
+          <div className="field">
+            <label>Country</label>
+            <input
+              className="input"
+              value={locationCountry}
+              onChange={(e) => setLocationCountry(e.target.value)}
+              placeholder="India"
+            />
+          </div>
+        </>
+      )}
+
+      {editing && (
+        <div className="field">
+          <label>Status</label>
+          <PrettySelect value={status} onChange={(e) => setStatus(e.target.value)}>
+            <option value="invited">Invited</option>
+            <option value="active">Active</option>
+            <option value="suspended">Suspended</option>
+          </PrettySelect>
+        </div>
+      )}
+
+      {/* Permissions */}
+      <div
+        style={{
+          marginTop: 8,
+          marginBottom: 16,
+          padding: 14,
+          borderRadius: 12,
+          border: '1px solid var(--border)',
+          background: 'var(--surface-2, #f8fafc)',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'baseline',
+            marginBottom: 10,
+          }}
+        >
+          <div style={{ fontWeight: 700, fontSize: 13.5 }}>Permissions</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+            {grantedCount}/{permDefs.length} granted
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {permDefs.map((p) => {
+            const on = !!permState[p.key];
+            return (
+              <label
+                key={p.key}
+                style={{
+                  display: 'flex',
+                  gap: 10,
+                  alignItems: 'flex-start',
+                  cursor: p.locked ? 'default' : 'pointer',
+                  opacity: p.locked ? 0.85 : 1,
+                  padding: '8px 10px',
+                  borderRadius: 10,
+                  background: on ? 'var(--amber-soft, rgba(245,158,11,.12))' : 'var(--surface, #fff)',
+                  border: '1px solid var(--border)',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={on}
+                  disabled={!!p.locked}
+                  onChange={() => togglePerm(p.key, p.locked)}
+                  style={{ marginTop: 3, width: 16, height: 16, accentColor: 'var(--amber, #d97706)' }}
+                />
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ fontWeight: 600, fontSize: 13, display: 'block' }}>
+                    {p.label}
+                    {p.locked ? ' · always on' : ''}
+                  </span>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{p.desc}</span>
+                </span>
+              </label>
+            );
+          })}
+        </div>
       </div>
 
       <button
@@ -270,9 +518,11 @@ export default function UserForm({ user, onDone }) {
         className="btn btn-amber btn-block"
         onClick={submit}
         disabled={busy}
-        style={{ marginTop: 4 }}
       >
-        {busy ? 'Saving…' : editing ? 'Save changes' : '+ Create user'}
+        <svg>
+          <use href={editing ? '#i-check' : '#i-plus'} />
+        </svg>
+        {busy ? 'Saving…' : editing ? 'Save changes' : accountType === 'Admin' ? 'Create admin' : 'Create user'}
       </button>
     </div>
   );

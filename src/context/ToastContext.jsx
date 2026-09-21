@@ -12,6 +12,25 @@ const MAX_VISIBLE = 3;
 const BASE_DURATION = 2200;
 const MIN_DURATION = 900;
 
+/** Module-level defer so DataContext can pause toasts while the global loader is up. */
+let deferToasts = false;
+const pendingQueue = [];
+let flushListeners = new Set();
+
+export function setToastDefer(active) {
+  deferToasts = !!active;
+  if (!deferToasts) {
+    // Notify providers to flush
+    flushListeners.forEach((fn) => {
+      try {
+        fn();
+      } catch {
+        /* ignore */
+      }
+    });
+  }
+}
+
 /**
  * Global toast — top center via CSS.
  *
@@ -19,15 +38,14 @@ const MIN_DURATION = 900;
  *   showToast('Select a board type.', 'error');
  *   showToast('Sensor added', 'success');
  *
- * Stack rules:
- * - Same message replaces the existing toast (no spam stack)
- * - At most MAX_VISIBLE toasts
- * - Older toasts get shorter remaining lifetime when new ones arrive
+ * While the global busy overlay is active, success/info toasts are queued and
+ * shown only after loading ends. Errors still show immediately.
  */
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
   const idRef = useRef(0);
   const timersRef = useRef(new Map());
+  const showImmediateRef = useRef(null);
 
   const clearTimer = useCallback((id) => {
     const t = timersRef.current.get(id);
@@ -54,6 +72,59 @@ export function ToastProvider({ children }) {
     [clearTimer, dismiss]
   );
 
+  const showImmediate = useCallback(
+    (message, toastType = 'info', duration = BASE_DURATION) => {
+      if (!message) return;
+      const text = String(message);
+
+      setToasts((list) => {
+        const existing = list.find((t) => t.message === text);
+        if (existing) {
+          scheduleDismiss(existing.id, duration);
+          return list.map((t) =>
+            t.id === existing.id ? { ...t, type: toastType } : t
+          );
+        }
+
+        const id = ++idRef.current;
+        let next = [...list, { id, message: text, type: toastType }];
+
+        while (next.length > MAX_VISIBLE) {
+          const removed = next.shift();
+          clearTimer(removed.id);
+        }
+
+        next.forEach((t, index) => {
+          const ageFromNewest = next.length - 1 - index;
+          const ms =
+            ageFromNewest === 0
+              ? duration
+              : Math.max(MIN_DURATION, duration - ageFromNewest * 700);
+          scheduleDismiss(t.id, ms);
+        });
+
+        return next;
+      });
+    },
+    [clearTimer, scheduleDismiss]
+  );
+
+  showImmediateRef.current = showImmediate;
+
+  // Register flush when defer ends
+  React.useEffect(() => {
+    const flush = () => {
+      const batch = pendingQueue.splice(0, pendingQueue.length);
+      batch.forEach(({ message, type, duration }) => {
+        showImmediateRef.current?.(message, type, duration);
+      });
+    };
+    flushListeners.add(flush);
+    return () => {
+      flushListeners.delete(flush);
+    };
+  }, []);
+
   const showToast = useCallback(
     (messageOrOpts, type = 'info') => {
       let message = messageOrOpts;
@@ -69,39 +140,15 @@ export function ToastProvider({ children }) {
       if (!message) return;
       const text = String(message);
 
-      setToasts((list) => {
-        // Replace existing toast with the same message (resets timer)
-        const existing = list.find((t) => t.message === text);
-        if (existing) {
-          scheduleDismiss(existing.id, duration);
-          return list.map((t) =>
-            t.id === existing.id ? { ...t, type: toastType } : t
-          );
-        }
+      // Errors always show immediately; success/info wait for loader
+      if (deferToasts && toastType !== 'error') {
+        pendingQueue.push({ message: text, type: toastType, duration });
+        return;
+      }
 
-        const id = ++idRef.current;
-        let next = [...list, { id, message: text, type: toastType }];
-
-        // Drop oldest beyond max
-        while (next.length > MAX_VISIBLE) {
-          const removed = next.shift();
-          clearTimer(removed.id);
-        }
-
-        // Newer toast: full duration. Older ones: shrink so they clear faster.
-        next.forEach((t, index) => {
-          const ageFromNewest = next.length - 1 - index;
-          const ms =
-            ageFromNewest === 0
-              ? duration
-              : Math.max(MIN_DURATION, duration - ageFromNewest * 700);
-          scheduleDismiss(t.id, ms);
-        });
-
-        return next;
-      });
+      showImmediate(text, toastType, duration);
     },
-    [clearTimer, scheduleDismiss]
+    [showImmediate]
   );
 
   return (
@@ -125,7 +172,9 @@ export function ToastProvider({ children }) {
 export function useToast() {
   const ctx = useContext(ToastContext);
   if (!ctx) {
-    throw new Error('useToast must be used within a ToastProvider');
+    return (msg) => {
+      if (msg) console.info('[toast]', msg);
+    };
   }
   return ctx;
 }

@@ -17,7 +17,7 @@ export default function AdminCard({ admin, selected, onSelect, onEdit }) {
   const superadminCount = adminAccounts.filter(a => a.role === 'Superadmin' && a.status !== 'suspended').length;
   const isLastSuperadmin = admin.role === 'Superadmin' && superadminCount <= 1;
 
-  async function handleToggleStatus(e) {
+   async function handleToggleStatus(e) {
     e.stopPropagation();
     if (isSelf) {
       showToast('You can\u2019t change the status of your own account');
@@ -37,7 +37,7 @@ export default function AdminCard({ admin, selected, onSelect, onEdit }) {
       danger: suspending,
     });
     if (!ok) return;
-    toggleAdminStatus(admin.id);
+    await toggleAdminStatus(admin.id);
     showToast(
       suspending
         ? `${admin.name} suspended — users under this admin are suspended too`
@@ -45,7 +45,7 @@ export default function AdminCard({ admin, selected, onSelect, onEdit }) {
     );
   }
 
-  async function handleRemove(e) {
+   async function handleRemove(e) {
     e.stopPropagation();
     if (isSelf) {
       showToast('You can\u2019t remove your own account');
@@ -61,10 +61,13 @@ export default function AdminCard({ admin, selected, onSelect, onEdit }) {
       confirmLabel: 'Remove',
     });
     if (!ok) return;
-    removeAdmin(admin.id);
-    showToast(`${admin.name} removed`);
+    try {
+      await removeAdmin(admin.id);
+      showToast(`${admin.name} removed`);
+    } catch (err) {
+      showToast(err?.message || 'Could not remove admin', 'error');
+    }
   }
-
   return (
     <div className={`entity-card${selected ? ' selected' : ''}`} onClick={() => onSelect(admin.id)}>
       <div className="entity-card-top">
