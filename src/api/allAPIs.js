@@ -13,6 +13,24 @@ import { apiRequest } from './client.js';
 export const loginAPI = (body) =>
   apiRequest('/api/auth/login', { method: 'POST', body });
 
+
+export const verifyPasskeyAPI = (pendingToken, passkey) =>
+  apiRequest('/api/auth/passkey/verify', {
+    method: 'POST',
+    body: { pendingToken, passkey },
+  });
+
+export const setupPasskeyAPI = (passkey, confirm, token) =>
+  apiRequest('/api/auth/passkey/setup', {
+    method: 'POST',
+    body: { passkey, confirm },
+    token,
+  });
+
+export const skipPasskeySetupAPI = (token) =>
+  apiRequest('/api/auth/passkey/skip', { method: 'POST', token });
+
+
 export const logoutAPI = (token) =>
   apiRequest('/api/auth/logout', { method: 'POST', token });
 
@@ -46,11 +64,19 @@ export const getDevicesAPI = (token) =>
 export const getDevicesLiveAPI = (token) =>
   apiRequest('/api/devices/live', { token });
 
+/** Live reading for one device (admin) */
+export const getDeviceLiveAPI = (id, token) =>
+  apiRequest(`/api/devices/${id}/live`, { token });
+
 export const getMyDevicesAPI = (token) =>
   apiRequest('/api/devices/mine', { token });
 
 export const getMyDevicesLiveAPI = (token) =>
   apiRequest('/api/devices/mine/live', { token });
+
+/** Live reading for one of the signed-in user's devices */
+export const getMyDeviceLiveAPI = (id, token) =>
+  apiRequest(`/api/devices/mine/${id}/live`, { token });
 
 export const createDeviceAPI = (body, token) =>
   apiRequest('/api/devices', { method: 'POST', body, token });

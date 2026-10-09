@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useState,
   useCallback,
+  useRef,
 } from 'react';
 
 import {
@@ -13,6 +14,8 @@ import {
   getUsersAPI,
   getDevicesAPI,
   getDevicesLiveAPI,
+  getDeviceLiveAPI,
+  getMyDeviceLiveAPI,
   getMyDevicesAPI,
   getMyDevicesLiveAPI,
   createDeviceAPI,
@@ -640,16 +643,31 @@ export function DataProvider({ children }) {
   }, [loadData]);
 
 
-  // Live telemetry (temp/battery/status/relays) changes every few seconds
-  // server-side, but loadData() above only runs once per login and after
-  // mutations. Poll the lightweight /live endpoints on their own timer and
-  // merge just the live fields onto existing sensors — this must NOT call
-  // loadData()/setLoading(), or every tick would re-fetch users/alerts/
-  // automations too and flicker any open drawer/form.
+  // Live telemetry polling — ONLY while:
+  //  1) the browser tab is visible, and
+  //  2) livePolling is enabled (views that show maps / live KPIs opt in).
+  // This cuts AWS/API traffic when the user is on Users, Assign, Settings, etc.
+  // or has the tab in the background. Also guards against overlapping requests
+  // that were causing intermittent /live failures under load.
+  const [livePolling, setLivePolling] = useState(false);
+  /** When set, only this sensor is fetched from /:id/live (detail drawer). */
+  const [focusedSensorId, setFocusedSensorId] = useState(null);
+  /** Epoch ms of last successful live merge — UI shows stale when old. */
+  const [lastLiveAt, setLastLiveAt] = useState(null);
+  const [liveDegraded, setLiveDegraded] = useState(false);
+  const liveInFlightRef = useRef(false);
+
   const refreshLive = useCallback(
     async () => {
-      if (session?.isDemo) {
-        try {
+      if (liveInFlightRef.current) return;
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        return;
+      }
+
+      liveInFlightRef.current = true;
+
+      const attemptOnce = async () => {
+        if (session?.isDemo) {
           const liveRes = await getDemoLiveAPI();
           const list = liveRes.sensors || [];
           if (!list.length) return;
@@ -677,24 +695,35 @@ export function DataProvider({ children }) {
               };
             }),
           }));
-        } catch (err) {
-          console.error('[DataContext] demo live refresh failed', err);
+          return;
         }
-        return;
-      }
-      if (!token) return;
+        if (!token) return;
 
-      try {
+        if (focusedSensorId) {
+          const live = await (session?.type === 'admin'
+            ? getDeviceLiveAPI(focusedSensorId, token)
+            : getMyDeviceLiveAPI(focusedSensorId, token));
+          const reading = live?.device || live;
+          if (reading) {
+            setState((prev) => ({
+              ...prev,
+              sensors: prev.sensors.map((s) =>
+                String(s.id) === String(focusedSensorId)
+                  ? normalizeSensor(s, reading)
+                  : s
+              ),
+            }));
+          }
+          return;
+        }
 
         const liveRes = await (session?.type === 'admin'
           ? getDevicesLiveAPI(token)
           : getMyDevicesLiveAPI(token));
 
-        const liveMap =
-          new Map(
-            (liveRes.devices || [])
-              .map((d) => [String(d.id), d])
-          );
+        const liveMap = new Map(
+          (liveRes.devices || []).map((d) => [String(d.id), d])
+        );
 
         setState((prev) => ({
           ...prev,
@@ -703,33 +732,63 @@ export function DataProvider({ children }) {
             return live ? normalizeSensor(s, live) : s;
           }),
         }));
+      };
 
+      try {
+        // One retry with short backoff on transient failures
+        try {
+          await attemptOnce();
+        } catch (err1) {
+          await new Promise((r) => setTimeout(r, 1200));
+          await attemptOnce();
+        }
+        setLastLiveAt(Date.now());
+        setLiveDegraded(false);
       } catch (err) {
-
-        console.error('[DataContext] live refresh failed', err);
-
+        setLiveDegraded(true);
+        console.error('[DataContext] live refresh failed', err?.message || err);
+      } finally {
+        liveInFlightRef.current = false;
       }
-
     },
-    [token, session?.type]
+    [token, session?.type, session?.isDemo, focusedSensorId]
   );
 
+  // Tiered interval: detail (focused) faster; list/dashboard slower
   useEffect(() => {
-
-    if (!token) return;
-
-    const id = setInterval(refreshLive, 5000);
-
-    return () => clearInterval(id);
-
-  }, [token, refreshLive]);
-
-
-  useEffect(() => {
+    if (!livePolling) return;
     if (!token && !session?.isDemo) return;
-    const id = setInterval(refreshLive, 5000);
-    return () => clearInterval(id);
-  }, [token, session?.isDemo, refreshLive]);
+
+    let id = null;
+    const intervalMs = focusedSensorId ? 4000 : 12000;
+
+    const start = () => {
+      if (id != null) return;
+      refreshLive();
+      id = setInterval(refreshLive, intervalMs);
+    };
+    const stop = () => {
+      if (id != null) {
+        clearInterval(id);
+        id = null;
+      }
+    };
+
+    const onVis = () => {
+      if (document.visibilityState === 'visible') start();
+      else stop();
+    };
+
+    if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+      start();
+    }
+    document.addEventListener('visibilitychange', onVis);
+
+    return () => {
+      stop();
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [livePolling, token, session?.isDemo, refreshLive, focusedSensorId]);
   // ─────────────────────────────────────────────
   // Sensors
   // ─────────────────────────────────────────────
@@ -1104,6 +1163,13 @@ export function DataProvider({ children }) {
     error,
     refresh: loadData,
     resetDemo,
+    setLivePolling,
+    setFocusedSensorId,
+    focusedSensorId,
+    livePolling,
+    lastLiveAt,
+    liveDegraded,
+    refreshLive,
 
     addSensor,
     updateSensor,

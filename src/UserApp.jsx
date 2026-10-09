@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Routes,
   Route,
@@ -25,11 +25,18 @@ function UserLayout({ user, mySensors }) {
   const navigate = useNavigate();
   const { session } = useAuth();
   const location = useLocation();
-  const { loading, busy } = useData();
+  const { loading, busy, setLivePolling } = useData();
 
   const base = session?.isDemo ? '/demo/user' : '/app';
   const parts = location.pathname.split('/').filter(Boolean);
   const view = (session?.isDemo ? parts[2] : parts[1]) || 'overview';
+
+  // Only poll live telemetry on overview / sensors (maps & KPIs)
+  useEffect(() => {
+    const needsLive = view === 'overview' || view === 'sensors';
+    setLivePolling(!!needsLive);
+    return () => setLivePolling(false);
+  }, [view, setLivePolling]);
 
   function goTo(nextView) {
     navigate(`${base}/${nextView}`);

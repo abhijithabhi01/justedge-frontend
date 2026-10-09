@@ -7,7 +7,14 @@ import React, {
   useState,
 } from 'react';
 
-import { getMeAPI, loginAPI, logoutAPI } from '../api/allAPIs.js';
+import {
+  getMeAPI,
+  loginAPI,
+  logoutAPI,
+  verifyPasskeyAPI,
+  setupPasskeyAPI,
+  skipPasskeySetupAPI,
+} from '../api/allAPIs.js';
 import { setAuthToken } from '../api/client.js';
 
 const AUTH_KEY = 'justedge-session-v2';
@@ -182,12 +189,7 @@ export function AuthProvider({ children }) {
     };
   }, [session?.token, session?.isDemo]);
 
-  const login = useCallback(async (email, password) => {
-    const data = await loginAPI({
-      email: email.trim(),
-      password,
-    });
-
+  const applySessionFromLogin = useCallback((data) => {
     let nextSession;
     if (data.admin) {
       nextSession = {
@@ -198,6 +200,7 @@ export function AuthProvider({ children }) {
         role: data.admin.role,
         companyName: data.admin.companyName || '',
         account: data.admin,
+        needsPasskeySetup: !!data.needsPasskeySetup,
       };
     } else if (data.user) {
       nextSession = {
@@ -211,11 +214,61 @@ export function AuthProvider({ children }) {
     } else {
       throw new Error('Login response did not contain an account');
     }
-
     setAuthToken(nextSession.token);
     setSession(nextSession);
     return nextSession;
   }, []);
+
+  const login = useCallback(async (email, password) => {
+    const data = await loginAPI({
+      email: email.trim(),
+      password,
+    });
+
+    // Admin has passkey enabled — caller must verify before session is set
+    if (data.requiresPasskey) {
+      return {
+        requiresPasskey: true,
+        pendingToken: data.pendingToken,
+        admin: data.admin,
+      };
+    }
+
+    return applySessionFromLogin(data);
+  }, [applySessionFromLogin]);
+
+  const verifyPasskey = useCallback(async (pendingToken, passkey) => {
+    const data = await verifyPasskeyAPI(pendingToken, passkey);
+    return applySessionFromLogin(data);
+  }, [applySessionFromLogin]);
+
+  const setupPasskey = useCallback(async (passkey, confirm) => {
+    const token = session?.token;
+    if (!token) throw new Error('Not signed in');
+    const data = await setupPasskeyAPI(passkey, confirm, token);
+    setSession((cur) =>
+      cur
+        ? {
+            ...cur,
+            needsPasskeySetup: false,
+            account: data.admin || cur.account,
+          }
+        : cur
+    );
+    return data;
+  }, [session?.token]);
+
+  const skipPasskeySetup = useCallback(async () => {
+    const token = session?.token;
+    if (token) {
+      try {
+        await skipPasskeySetupAPI(token);
+      } catch {
+        /* non-blocking */
+      }
+    }
+    setSession((cur) => (cur ? { ...cur, needsPasskeySetup: false } : cur));
+  }, [session?.token]);
 
   const logout = useCallback(() => {
     setSession((current) => {
@@ -249,8 +302,8 @@ export function AuthProvider({ children }) {
     session?.type === 'admin' && session?.role === 'Superadmin';
 
   const value = useMemo(
-    () => ({ session, login, loginDemo, logout, isSuperadmin }),
-    [session, login, loginDemo, logout, isSuperadmin]
+    () => ({ session, login, loginDemo, logout, isSuperadmin, verifyPasskey, setupPasskey, skipPasskeySetup }),
+    [session, login, loginDemo, logout, isSuperadmin, verifyPasskey, setupPasskey, skipPasskeySetup]
   );
 
   return (

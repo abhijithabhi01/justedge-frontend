@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useData } from '../context/DataContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import SensorCard from '../components/SensorCard.jsx';
@@ -9,7 +9,7 @@ import { boardById, ownerName } from '../lib/helpers.js';
 import { downloadCSV } from '../lib/csv.js';
 
 export default function SensorsView({ onNavigate }) {
-  const { sensors, boardCatalog, users } = useData();
+  const { sensors, boardCatalog, users, setFocusedSensorId } = useData();
   const showToast = useToast();
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -27,6 +27,16 @@ export default function SensorsView({ onNavigate }) {
   }, [sensors, boardCatalog, users, query, statusFilter]);
 
   const activeSensor = drawer && drawer.sensorId ? sensors.find(s => s.id === drawer.sensorId) : null;
+
+  // Detail open → poll only that sensor; list view → full fleet live
+  useEffect(() => {
+    if (drawer?.mode === 'view' && drawer.sensorId) {
+      setFocusedSensorId(drawer.sensorId);
+    } else {
+      setFocusedSensorId(null);
+    }
+    return () => setFocusedSensorId(null);
+  }, [drawer?.mode, drawer?.sensorId, setFocusedSensorId]);
 
   function exportCSV() {
     const headers = [

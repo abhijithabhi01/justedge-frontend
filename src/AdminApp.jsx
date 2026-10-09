@@ -55,9 +55,16 @@ function AdminLayout() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const navigate = useNavigate();
   const { isSuperadmin } = useAuth();
-  const { loading, busy } = useData();
+  const { loading, busy, setLivePolling } = useData();
   const base = useAppBase();
   const view = useActiveView(base);
+
+  // Only poll /devices/live on screens that show live KPIs / maps
+  useEffect(() => {
+    const needsLive = view === 'dashboard' || view === 'sensors' || view === 'fleet-health';
+    setLivePolling(!!needsLive);
+    return () => setLivePolling(false);
+  }, [view, setLivePolling]);
 
   useEffect(() => {
     // Collapse corrupted nested URLs like /app/assign/assign/dashboard/...

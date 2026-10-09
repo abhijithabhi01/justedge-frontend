@@ -1,16 +1,28 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import SensorCard from '../components/SensorCard.jsx';
 import Drawer from '../components/Drawer.jsx';
 import SensorForm from '../components/SensorForm.jsx';
 import SensorDetail from '../components/SensorDetail.jsx';
 import { useToast } from '../context/ToastContext.jsx';
+import { useData } from '../context/DataContext.jsx';
 import { downloadCSV } from '../lib/csv.js';
 
 export default function UserSensorsView({ user, mySensors }) {
   const [drawer, setDrawer] = useState(null);
   const showToast = useToast();
+  const { setFocusedSensorId } = useData();
   const perms = user?.permissions || {};
   const activeSensor = drawer && drawer.sensorId ? mySensors.find(s => s.id === drawer.sensorId) : null;
+
+  // Detail open → poll only that sensor
+  useEffect(() => {
+    if (drawer?.mode === 'view' && drawer.sensorId) {
+      setFocusedSensorId(drawer.sensorId);
+    } else {
+      setFocusedSensorId(null);
+    }
+    return () => setFocusedSensorId(null);
+  }, [drawer?.mode, drawer?.sensorId, setFocusedSensorId]);
 
   const drawerTitle = drawer?.mode === 'add' ? 'Add sensor'
     : drawer?.mode === 'edit' ? 'Edit sensor'

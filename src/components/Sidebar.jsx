@@ -20,6 +20,28 @@ const NAV = {
   ],
 };
 
+
+function LiveStatusLine() {
+  const { lastLiveAt, liveDegraded, livePolling } = useData();
+  const [now, setNow] = React.useState(Date.now());
+  React.useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 5000);
+    return () => clearInterval(t);
+  }, []);
+  const ageSec = lastLiveAt ? Math.round((now - lastLiveAt) / 1000) : null;
+  const stale = liveDegraded || (ageSec != null && ageSec > 25);
+  let label = 'Fleet live · syncing';
+  if (!livePolling && lastLiveAt) label = 'Live paused · leave this page';
+  else if (stale && ageSec != null) label = `Live delayed · ${ageSec}s ago`;
+  else if (ageSec != null && ageSec >= 0) label = `Fleet live · ${ageSec}s ago`;
+  return (
+    <div className={`sidebar-status${stale ? ' is-stale' : ''}`}>
+      <div className={`pulse-dot${stale ? ' warn' : ''}`} />
+      {label}
+    </div>
+  );
+}
+
 export default function Sidebar({ view, onNavigate, mobileOpen, onClose }) {
   const { sensors } = useData();
   const { isSuperadmin } = useAuth();
@@ -49,7 +71,7 @@ export default function Sidebar({ view, onNavigate, mobileOpen, onClose }) {
           </div>
         </div>
       </div>
-      <div className="sidebar-status"><div className="pulse-dot"></div>Fleet live · syncing</div>
+      <LiveStatusLine />
 
       <div className="sidebar-section-label">Overview</div>
       <ul className="nav-list">

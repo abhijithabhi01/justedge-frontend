@@ -92,20 +92,47 @@ const BRAND_POINTS = [
 ];
 
 export default function LoginPage({ onBack }) {
-  const { login } = useAuth();
+  const { login, verifyPasskey, setupPasskey, skipPasskeySetup, session } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  // credentials | verify | setup
+  const [step, setStep] = useState(session?.needsPasskeySetup ? 'setup' : 'credentials');
+  const [pendingToken, setPendingToken] = useState('');
+  const [passkey, setPasskey] = useState('');
+  const [passkeyConfirm, setPasskeyConfirm] = useState('');
+  const [adminHint, setAdminHint] = useState(null);
 
-  async function submit(e) {
+  // If session arrives with needsPasskeySetup (e.g. refresh), show setup
+  useEffect(() => {
+    if (session?.needsPasskeySetup) setStep('setup');
+  }, [session?.needsPasskeySetup]);
+
+  async function submitCredentials(e) {
     e.preventDefault();
     setError('');
     if (!email.trim()) return setError('Enter your email address.');
     if (!password.trim()) return setError('Enter your password.');
     setBusy(true);
     try {
-      await login(email.trim(), password);
+      const result = await login(email.trim(), password);
+      if (result?.requiresPasskey) {
+        setPendingToken(result.pendingToken);
+        setAdminHint(result.admin);
+        setPasskey('');
+        setStep('verify');
+        return;
+      }
+      if (result?.needsPasskeySetup || result?.type === 'admin') {
+        // Admin without passkey — offer setup (users go straight in via LoginRoute)
+        if (result?.needsPasskeySetup) {
+          setStep('setup');
+          setPasskey('');
+          setPasskeyConfirm('');
+          return;
+        }
+      }
     } catch (err) {
       setError(err.message || 'Invalid email or password.');
     } finally {
@@ -113,9 +140,66 @@ export default function LoginPage({ onBack }) {
     }
   }
 
+  async function submitVerify(e) {
+    e.preventDefault();
+    setError('');
+    if (!/^\d{6}$/.test(passkey)) {
+      return setError('Enter your 6-digit passkey.');
+    }
+    setBusy(true);
+    try {
+      await verifyPasskey(pendingToken, passkey);
+    } catch (err) {
+      setError(err.message || 'Incorrect passkey.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitSetup(e) {
+    e.preventDefault();
+    setError('');
+    if (!/^\d{6}$/.test(passkey)) {
+      return setError('Passkey must be exactly 6 digits.');
+    }
+    if (passkey !== passkeyConfirm) {
+      return setError('Passkeys do not match.');
+    }
+    setBusy(true);
+    try {
+      await setupPasskey(passkey, passkeyConfirm);
+    } catch (err) {
+      setError(err.message || 'Could not save passkey.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleSkipSetup() {
+    setBusy(true);
+    setError('');
+    try {
+      await skipPasskeySetup();
+    } catch (err) {
+      setError(err.message || 'Could not skip.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="login-screen">
-      {busy && <FullScreenLoader label="Signing in…" />}
+      {busy && (
+        <FullScreenLoader
+          label={
+            step === 'verify'
+              ? 'Verifying passkey…'
+              : step === 'setup'
+                ? 'Saving passkey…'
+                : 'Signing in…'
+          }
+        />
+      )}
 
       <div className="login-panel-brand">
         <div className="login-brand-title">JustEdge</div>
@@ -140,7 +224,7 @@ export default function LoginPage({ onBack }) {
       </div>
 
       <div className="login-panel-form">
-        {onBack && (
+        {onBack && step === 'credentials' && (
           <button type="button" className="login-back" onClick={onBack} disabled={busy}>
             <svg style={{ width: 13, height: 13, transform: 'rotate(180deg)' }}>
               <use href="#i-chev" />
@@ -149,48 +233,164 @@ export default function LoginPage({ onBack }) {
           </button>
         )}
 
-        <div className="login-title">Sign in to JustEdge</div>
-        <div className="login-sub">
-          Manage your fleet, or view the sensors assigned to you
-        </div>
+        {step === 'credentials' && (
+          <>
+            <div className="login-title">Sign in to JustEdge</div>
+            <div className="login-sub">
+              Manage your fleet, or view the sensors assigned to you
+            </div>
+            <form onSubmit={submitCredentials}>
+              {error && <div className="form-error show">{error}</div>}
+              <div className="field">
+                <label>
+                  Email <span className="req">*</span>
+                </label>
+                <input
+                  className="input"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@justedge.io"
+                  disabled={busy}
+                  autoComplete="username"
+                />
+              </div>
+              <div className="field">
+                <label>
+                  Password <span className="req">*</span>
+                </label>
+                <input
+                  className="input"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  disabled={busy}
+                  autoComplete="current-password"
+                />
+              </div>
+              <button className="btn btn-amber btn-block" type="submit" disabled={busy}>
+                <svg>
+                  <use href="#i-check" />
+                </svg>
+                Sign in
+              </button>
+            </form>
+          </>
+        )}
 
-        <form onSubmit={submit}>
-          {error && <div className="form-error show">{error}</div>}
-          <div className="field">
-            <label>
-              Email <span className="req">*</span>
-            </label>
-            <input
-              className="input"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="name@justedge.io"
-              disabled={busy}
-              autoComplete="username"
-            />
-          </div>
-          <div className="field">
-            <label>
-              Password <span className="req">*</span>
-            </label>
-            <input
-              className="input"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              disabled={busy}
-              autoComplete="current-password"
-            />
-          </div>
-          <button className="btn btn-amber btn-block" type="submit" disabled={busy}>
-            <svg>
-              <use href="#i-check" />
-            </svg>
-            {busy ? 'Signing in…' : 'Sign in'}
-          </button>
-        </form>
+        {step === 'verify' && (
+          <>
+            <div className="login-title">Enter passkey</div>
+            <div className="login-sub">
+              {adminHint?.name
+                ? `Welcome back, ${adminHint.name}. Enter your 6-digit admin passkey.`
+                : 'Enter your 6-digit admin passkey to continue.'}
+            </div>
+            <form onSubmit={submitVerify}>
+              {error && <div className="form-error show">{error}</div>}
+              <div className="field">
+                <label>
+                  6-digit passkey <span className="req">*</span>
+                </label>
+                <input
+                  className="input"
+                  type="password"
+                  inputMode="numeric"
+                  pattern="\d{6}"
+                  maxLength={6}
+                  value={passkey}
+                  onChange={(e) =>
+                    setPasskey(e.target.value.replace(/\D/g, '').slice(0, 6))
+                  }
+                  placeholder="••••••"
+                  disabled={busy}
+                  autoComplete="one-time-code"
+                  autoFocus
+                />
+              </div>
+              <button className="btn btn-amber btn-block" type="submit" disabled={busy}>
+                Verify &amp; continue
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-block"
+                style={{ marginTop: 10 }}
+                disabled={busy}
+                onClick={() => {
+                  setStep('credentials');
+                  setPendingToken('');
+                  setPasskey('');
+                  setError('');
+                }}
+              >
+                Back to sign in
+              </button>
+            </form>
+          </>
+        )}
+
+        {step === 'setup' && (
+          <>
+            <div className="login-title">Create admin passkey</div>
+            <div className="login-sub">
+              Protect your admin console with a 6-digit passkey. You can skip
+              and set this up later.
+            </div>
+            <form onSubmit={submitSetup}>
+              {error && <div className="form-error show">{error}</div>}
+              <div className="field">
+                <label>
+                  New 6-digit passkey <span className="req">*</span>
+                </label>
+                <input
+                  className="input"
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={passkey}
+                  onChange={(e) =>
+                    setPasskey(e.target.value.replace(/\D/g, '').slice(0, 6))
+                  }
+                  placeholder="e.g. 482913"
+                  disabled={busy}
+                  autoComplete="new-password"
+                  autoFocus
+                />
+              </div>
+              <div className="field">
+                <label>
+                  Confirm passkey <span className="req">*</span>
+                </label>
+                <input
+                  className="input"
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={passkeyConfirm}
+                  onChange={(e) =>
+                    setPasskeyConfirm(e.target.value.replace(/\D/g, '').slice(0, 6))
+                  }
+                  placeholder="Re-enter 6 digits"
+                  disabled={busy}
+                  autoComplete="new-password"
+                />
+              </div>
+              <button className="btn btn-amber btn-block" type="submit" disabled={busy}>
+                Save passkey
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-block"
+                style={{ marginTop: 10 }}
+                disabled={busy}
+                onClick={handleSkipSetup}
+              >
+                Skip for now
+              </button>
+            </form>
+          </>
+        )}
       </div>
     </div>
   );

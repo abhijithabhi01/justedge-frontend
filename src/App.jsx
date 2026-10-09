@@ -25,7 +25,10 @@ function LandingRoute() {
 function LoginRoute() {
   const { session } = useAuth();
   const navigate = useNavigate();
-  if (session && !session.isDemo) return <Navigate to="/app" replace />;
+  // Stay on login while admin finishes optional passkey setup
+  if (session && !session.isDemo && !session.needsPasskeySetup) {
+    return <Navigate to="/app" replace />;
+  }
   return <LoginPage onBack={() => navigate('/')} />;
 }
 

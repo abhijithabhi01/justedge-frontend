@@ -613,3 +613,9 @@ textarea.input{resize:vertical; min-height:64px;}
   opacity:.55;
   cursor:not-allowed;
 }
+
+
+/* Live status in sidebar */
+.sidebar-status.is-stale{ color: var(--warn); }
+.pulse-dot.warn{ background: var(--warn); }
+.pulse-dot.warn::after{ background: var(--warn); }
