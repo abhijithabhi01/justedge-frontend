@@ -6,6 +6,7 @@ import NavTabs from '../components/NavTabs.jsx';
 import FAQAccordion from '../components/FAQAccordion.jsx';
 import Footer from '../components/Footer.jsx';
 import ScrollToTop from '../components/ScrollToTop.jsx';
+import BrandLogo from '../components/BrandLogo.jsx';
 
 const FEATURES = [
   {
@@ -179,7 +180,7 @@ export default function LandingPage({ onEnter, onDemo }) {
       <header className="landing-nav">
         <div className="landing-nav-inner">
           <div className="lp-brand">
-            <span>JustEdge</span>
+            <BrandLogo size="sm" />
           </div>
           <nav className="lp-nav-links">
             <NavTabs onNavigate={scrollToSection} />

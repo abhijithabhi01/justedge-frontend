@@ -37,6 +37,22 @@ export const logoutAPI = (token) =>
 export const getMeAPI = (token) =>
   apiRequest('/api/auth/me', { token });
 
+export const googleLoginAPI = (idToken) =>
+  apiRequest('/api/auth/google', { method: 'POST', body: { idToken } });
+
+export const forgotPasswordAPI = (email) =>
+  apiRequest('/api/auth/forgot-password', { method: 'POST', body: { email } });
+
+export const resetPasswordAPI = (body) =>
+  apiRequest('/api/auth/reset-password', { method: 'POST', body });
+
+export const forgotPasskeyAPI = (email) =>
+  apiRequest('/api/auth/forgot-passkey', { method: 'POST', body: { email } });
+
+export const resetPasskeyAPI = (body) =>
+  apiRequest('/api/auth/reset-passkey', { method: 'POST', body });
+
+
 // ── Board catalog ────────────────────────────────────────────────────────────
 
 export const getBoardCatalogAPI = (token) =>

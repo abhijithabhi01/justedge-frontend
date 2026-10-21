@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { initials } from '../lib/helpers.js';
 import Drawer from './Drawer.jsx';
 import ProfilePanel from './ProfilePanel.jsx';
+import BrandLogo from './BrandLogo.jsx';
 
 const NAV = [
   { id: 'overview', label: 'Overview', icon: 'i-grid' },
@@ -24,8 +25,11 @@ export default function UserSidebar({ view, onNavigate, user, mySensors, mobileO
     {mobileOpen && <div className="sidebar-overlay open" onClick={onClose}></div>}
     <aside className={`sidebar${mobileOpen ? ' mobile-open' : ''}`}>
       <div className="sidebar-brand">
-
-        <div><div className="brand-name">JustEdge</div><div className="brand-sub">User dashboard</div></div>
+        <BrandLogo size="sm" />
+        <div>
+          <div className="brand-name">JustEdge</div>
+          <div className="brand-sub">User dashboard</div>
+        </div>
       </div>
       <button className="sidebar-status sidebar-profile-trigger" onClick={() => setProfileOpen(true)} title="View your profile & permissions">
         <div className="entity-avatar" style={{ width: 28, height: 28, fontSize: 11, borderRadius: 9 }}>{initials(user?.name || '')}</div>

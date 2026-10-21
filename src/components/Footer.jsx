@@ -1,4 +1,5 @@
 import React from 'react';
+import BrandLogo from './BrandLogo.jsx';
 
 export default function Footer({ onNavigate }) {
   function handleLinkClick(e, sectionId) {
@@ -13,7 +14,7 @@ export default function Footer({ onNavigate }) {
         {/* Brand column */}
         <div className="lp-footer-brand">
           <div className="lp-brand">
-            <span>JustEdge</span>
+            <BrandLogo size="md" />
           </div>
           <p className="lp-footer-desc">
             Live sensor monitoring for cold storage, offices and warehouses.
