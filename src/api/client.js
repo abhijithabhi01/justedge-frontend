@@ -35,7 +35,7 @@ export function setAuthToken(token) {
 
 /**
  * Low-level request helper used by allAPIs.js only.
- * UI / contexts should call named functions from allAPIs.js — not this directly.
+ * UI / contexts / hooks should call named functions from allAPIs.js — not this directly.
  *
  * @param {string} path - API path, e.g. '/api/devices'
  * @param {{ method?: string, body?: unknown, token?: string, params?: object }} [options]
@@ -71,8 +71,13 @@ export async function apiRequest(path, options = {}) {
 
     const error = new Error(message);
     error.status = status;
+    error.code = data && typeof data === 'object' ? data.code : undefined;
+    error.details = data && typeof data === 'object' ? data.details : undefined;
     error.data = data;
-    error.suspended = status === 403 && /suspended/i.test(String(message));
+    error.suspended = status === 403 && (
+      error.code === 'ACCOUNT_SUSPENDED' ||
+      /suspended/i.test(String(message))
+    );
     throw error;
   }
 }
