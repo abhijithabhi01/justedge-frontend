@@ -21,6 +21,12 @@ const NAV = {
   ],
 };
 
+function formatAge(ageSec) {
+  if (ageSec == null || ageSec < 0) return null;
+  if (ageSec < 60) return `${ageSec}s ago`;
+  const mins = Math.floor(ageSec / 60);
+  return mins === 1 ? '1 minute ago' : `${mins} minutes ago`;
+}
 
 function LiveStatusLine() {
   const { lastLiveAt, liveDegraded, livePolling } = useData();
@@ -31,10 +37,13 @@ function LiveStatusLine() {
   }, []);
   const ageSec = lastLiveAt ? Math.round((now - lastLiveAt) / 1000) : null;
   const stale = liveDegraded || (ageSec != null && ageSec > 25);
+  const ageLabel = formatAge(ageSec);
+
   let label = 'Fleet live · syncing';
   if (!livePolling && lastLiveAt) label = 'Live paused · leave this page';
-  else if (stale && ageSec != null) label = `Live delayed · ${ageSec}s ago`;
-  else if (ageSec != null && ageSec >= 0) label = `Fleet live · ${ageSec}s ago`;
+  else if (stale && ageLabel) label = `Live delayed · ${ageLabel}`;
+  else if (ageLabel) label = `Fleet live · ${ageLabel}`;
+
   return (
     <div className={`sidebar-status${stale ? ' is-stale' : ''}`}>
       <div className={`pulse-dot${stale ? ' warn' : ''}`} />
@@ -62,19 +71,34 @@ export default function Sidebar({ view, onNavigate, mobileOpen, onClose }) {
 
   return (
     <>
-      {mobileOpen && <div className="sidebar-overlay open" onClick={onClose}></div>}
-      <aside className={`sidebar${mobileOpen ? ' mobile-open' : ''}`}>
-        <div className="sidebar-brand">
-          <BrandLogo size="sm" />
-          <div className="brand-sub">
-            {isSuperadmin ? 'Superadmin console' : 'Admin console'}
-          </div>
+    {mobileOpen && <div className="sidebar-overlay open" onClick={onClose}></div>}
+    <aside className={`sidebar${mobileOpen ? ' mobile-open' : ''}`}>
+      <div className="sidebar-brand">
+        <BrandLogo size="sm" />
+        <div className="brand-sub">
+          {isSuperadmin ? 'Superadmin console' : 'Admin console'}
         </div>
-        <LiveStatusLine />
+      </div>
+      <LiveStatusLine />
 
-        <div className="sidebar-section-label">Overview</div>
+      <div className="sidebar-section-label">Overview</div>
+      <ul className="nav-list">
+        {NAV.overview.map(item => (
+          <li className="nav-item" key={item.id}>
+            <a
+              className={`nav-link${view === item.id ? ' active' : ''}`}
+              onClick={() => navigate(item.id)}
+            >
+              <svg><use href={`#${item.icon}`} /></svg>{item.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+
+      <>
+        <div className="sidebar-section-label">Manage</div>
         <ul className="nav-list">
-          {NAV.overview.map(item => (
+          {manageItems.map(item => (
             <li className="nav-item" key={item.id}>
               <a
                 className={`nav-link${view === item.id ? ' active' : ''}`}
@@ -85,11 +109,13 @@ export default function Sidebar({ view, onNavigate, mobileOpen, onClose }) {
             </li>
           ))}
         </ul>
+      </>
 
+      {isSuperadmin && (
         <>
-          <div className="sidebar-section-label">Manage</div>
+          <div className="sidebar-section-label">Super Admin</div>
           <ul className="nav-list">
-            {manageItems.map(item => (
+            {NAV.superAdmin.map(item => (
               <li className="nav-item" key={item.id}>
                 <a
                   className={`nav-link${view === item.id ? ' active' : ''}`}
@@ -101,42 +127,25 @@ export default function Sidebar({ view, onNavigate, mobileOpen, onClose }) {
             ))}
           </ul>
         </>
+      )}
 
-        {isSuperadmin && (
-          <>
-            <div className="sidebar-section-label">Super Admin</div>
-            <ul className="nav-list">
-              {NAV.superAdmin.map(item => (
-                <li className="nav-item" key={item.id}>
-                  <a
-                    className={`nav-link${view === item.id ? ' active' : ''}`}
-                    onClick={() => navigate(item.id)}
-                  >
-                    <svg><use href={`#${item.icon}`} /></svg>{item.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-
-        <div className="sidebar-foot">
-          <a
-            href="https://justembedded.in/contact/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="nav-link"
-            style={{ marginBottom: 10, fontSize: 12, opacity: 0.85 }}
-          >
-            <svg style={{ width: 14, height: 14 }}><use href="#i-shield" /></svg>
-            Support / contact
-          </a>
-          <div className="mini-card">
-            <div><div className="label">Boards online</div><div className="val">{online}/{sensors.length}</div></div>
-            <svg style={{ width: 18, height: 18, color: 'var(--good)' }}><use href="#i-wifi" /></svg>
-          </div>
+      <div className="sidebar-foot">
+        <a
+          href="https://justembedded.in/contact/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="nav-link"
+          style={{ marginBottom: 10, fontSize: 12, opacity: 0.85 }}
+        >
+          <svg style={{ width: 14, height: 14 }}><use href="#i-shield" /></svg>
+          Support / contact
+        </a>
+        <div className="mini-card">
+          <div><div className="label">Boards online</div><div className="val">{online}/{sensors.length}</div></div>
+          <svg style={{ width: 18, height: 18, color: 'var(--good)' }}><use href="#i-wifi" /></svg>
         </div>
-      </aside>
+      </div>
+    </aside>
     </>
   );
 }
